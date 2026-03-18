@@ -23,13 +23,29 @@ final class Transactions
     ) {}
 
     /**
-     * Get transaction details.
+     * Get transaction details via Legacy API (Basic Auth).
      *
-     * @return array<string, mixed>  Raw Viva transaction data
+     * Returns full transaction data including Fee, Commission, Order, Payment, CreditCard.
+     *
+     * @return array<string, mixed>  Raw Viva transaction data (PascalCase keys)
      */
     public function get(string $transactionId): array
     {
         return $this->http->legacyGet("/api/transactions/{$transactionId}");
+    }
+
+    /**
+     * Get transaction details via New API (Bearer OAuth).
+     *
+     * Returns a lighter response: email, amount, orderCode, statusId, fullName,
+     * cardNumber (masked), currencyCode, recurringSupport, cardUniqueReference.
+     * This is the endpoint recommended by Viva for verifying Smart Checkout payments.
+     *
+     * @return array<string, mixed>  Transaction data (camelCase keys)
+     */
+    public function getV2(string $transactionId): array
+    {
+        return $this->http->get("/checkout/v2/transactions/{$transactionId}");
     }
 
     /**

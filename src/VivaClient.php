@@ -9,6 +9,7 @@ use QrCommunication\VivaMerchant\Resources\Account;
 use QrCommunication\VivaMerchant\Resources\Orders;
 use QrCommunication\VivaMerchant\Resources\Sources;
 use QrCommunication\VivaMerchant\Resources\Transactions;
+use QrCommunication\VivaMerchant\Resources\Wallets;
 use QrCommunication\VivaMerchant\Resources\Webhooks;
 
 /**
@@ -50,6 +51,8 @@ final class VivaClient
 
     public readonly Webhooks $webhooks;
 
+    public readonly Wallets $wallets;
+
     public readonly Account $account;
 
     private readonly Config $config;
@@ -76,6 +79,7 @@ final class VivaClient
         $this->orders = new Orders($this->http, $this->config);
         $this->transactions = new Transactions($this->http, $this->config);
         $this->sources = new Sources($this->http);
+        $this->wallets = new Wallets($this->http, $this->config);
         $this->webhooks = new Webhooks;
         $this->account = new Account($this->http, $this->config);
     }
