@@ -7,6 +7,8 @@ namespace QrCommunication\VivaMerchant;
 use QrCommunication\VivaMerchant\Enums\Environment;
 use QrCommunication\VivaMerchant\Resources\Account;
 use QrCommunication\VivaMerchant\Resources\BankAccounts;
+use QrCommunication\VivaMerchant\Resources\DataServices;
+use QrCommunication\VivaMerchant\Resources\NativeCheckout;
 use QrCommunication\VivaMerchant\Resources\Orders;
 use QrCommunication\VivaMerchant\Resources\Sources;
 use QrCommunication\VivaMerchant\Resources\Transactions;
@@ -41,6 +43,13 @@ use QrCommunication\VivaMerchant\Resources\Webhooks;
  *
  *     // Paiement récurrent
  *     $viva->transactions->recurring('initial-txn-uuid', amount: 1500);
+ *
+ *     // Paiement Apple Pay / Google Pay
+ *     $token = $viva->nativeCheckout->createChargeToken(1500, $applePayData);
+ *     $txn = $viva->nativeCheckout->createTransaction($token['chargeToken'], 1500);
+ *
+ *     // Rapport MT940
+ *     $report = $viva->dataServices->mt940('2026-03-18');
  */
 final class VivaClient
 {
@@ -57,6 +66,10 @@ final class VivaClient
     public readonly BankAccounts $bankAccounts;
 
     public readonly Account $account;
+
+    public readonly NativeCheckout $nativeCheckout;
+
+    public readonly DataServices $dataServices;
 
     private readonly Config $config;
 
@@ -86,6 +99,8 @@ final class VivaClient
         $this->bankAccounts = new BankAccounts($this->http);
         $this->webhooks = new Webhooks;
         $this->account = new Account($this->http, $this->config);
+        $this->nativeCheckout = new NativeCheckout($this->http);
+        $this->dataServices = new DataServices($this->http);
     }
 
     /**

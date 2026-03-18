@@ -1,26 +1,40 @@
-You are working on the `qrcommunication/viva-merchant-sdk` PHP package — a Viva Wallet Merchant API SDK.
+You are working on the `qrcommunication/viva-merchant-sdk` PHP package -- a Viva Wallet Merchant API SDK.
 
 ## Key Rules
 
-1. **Two APIs exist** — Legacy (Basic Auth, PascalCase params) and New (Bearer OAuth2, camelCase). NEVER mix casing.
-2. **All amounts are in cents** (int). €15.00 = 1500.
+1. **Two APIs exist** -- Legacy (Basic Auth, PascalCase params) and New (Bearer OAuth2, camelCase). NEVER mix casing.
+2. **All amounts are in cents** (int). EUR 15.00 = 1500.
 3. **Resource pattern**: `$viva->orders->create()`, `$viva->transactions->get()`, etc.
-4. **HttpClient routing**: `legacyGet/Post()` → Legacy API. `get/post()` → New API.
-5. **OAuth2 is automatic** — lazy auth with 60s pre-expiry refresh. Never manage tokens manually.
-6. **Never send `scope=` in token requests** — causes `invalid_scope`.
+4. **HttpClient routing**: `legacyGet/Post()` -> Legacy API. `get/post/put/delete()` -> New API.
+5. **OAuth2 is automatic** -- lazy auth with 60s pre-expiry refresh. Never manage tokens manually.
+6. **Never send `scope=` in token requests** -- causes `invalid_scope`.
 7. **Exceptions**: `ApiException` (4xx/5xx), `AuthenticationException` (401), `ValidationException` (422).
 8. **PHP 8.2+ strict types**, PSR-4 namespace `QrCommunication\VivaMerchant\`.
 
 ## File Structure
 
-- `src/VivaClient.php` — Entry point, exposes 5 resources
-- `src/HttpClient.php` — Guzzle wrapper with dual auth (Bearer + Basic)
-- `src/Config.php` — Credentials + environment URLs
-- `src/Resources/` — Orders, Transactions, Sources, Webhooks, Account
-- `src/Enums/` — Environment, TransactionStatus, Currency
-- `src/Exceptions/` — VivaException, ApiException, AuthenticationException, ValidationException
+- `src/VivaClient.php` -- Entry point, exposes 9 resources
+- `src/HttpClient.php` -- Guzzle wrapper with dual auth (Bearer + Basic) + PUT support
+- `src/Config.php` -- Credentials + environment URLs
+- `src/Resources/` -- Orders, Transactions, Sources, Wallets, BankAccounts, NativeCheckout, DataServices, Webhooks, Account
+- `src/Enums/` -- Environment, TransactionStatus, Currency
+- `src/Exceptions/` -- VivaException, ApiException, AuthenticationException, ValidationException
+
+## Resources
+
+| Resource | API | Auth | Description |
+|----------|-----|------|-------------|
+| Orders | Legacy | Basic | Smart Checkout |
+| Transactions | Legacy+New | Mixed | get/list/cancel/capture/recurring + getV2 |
+| Sources | Legacy | Basic | Payment sources |
+| Wallets | Legacy+New | Mixed | Balances, transfers, Account API |
+| BankAccounts | New | Bearer | IBAN linking, SEPA transfers |
+| NativeCheckout | New | Bearer | Apple Pay / Google Pay |
+| DataServices | New | Bearer | MT940, webhook subscriptions, file requests |
+| Account | New | Bearer | Merchant info |
+| Webhooks | None | None | Verification + parsing (21 event types) |
 
 ## Test Card
 
 Number: 4111111111111111, CVV: 111, 3DS password: Secret!33
-Decline amounts: 9951 (insufficient), 9954 (expired), 9920 (stolen), 9957 (not permitted)
+Decline amounts: 9920 (stolen), 9951 (insufficient), 9954 (expired), 9957 (not permitted)
