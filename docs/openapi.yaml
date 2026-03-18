@@ -1,30 +1,77 @@
 openapi: 3.1.0
 info:
-  title: Viva Wallet Merchant SDK API
+  title: Viva Wallet Merchant SDK — Référence PHP
   version: 1.3.5
   description: |
-    SDK PHP complet pour l'API Viva Wallet marchand.
+    Documentation de référence du SDK PHP `qrcommunication/viva-merchant-sdk`.
 
-    Ce SDK couvre **9 ressources** : Orders, Transactions, Sources, Wallets, BankAccounts,
-    NativeCheckout (Apple Pay / Google Pay), DataServices (MT940, webhooks subscriptions),
-    Account et Webhooks.
+    Ce document décrit les **classes**, **méthodes**, **paramètres** et **types de retour**
+    du SDK — pas les endpoints HTTP sous-jacents.
 
-    ## Les deux APIs Viva Wallet
+    ## Installation
 
-    | API | Host production | Auth | Convention |
-    |-----|----------------|------|------------|
-    | **Legacy** | `www.vivapayments.com` | Basic Auth (MerchantID:APIKey) | PascalCase |
-    | **New** | `api.vivapayments.com` | Bearer OAuth2 | camelCase |
+    ```bash
+    composer require qrcommunication/viva-merchant-sdk
+    ```
 
-    ## Authentification
+    ## Initialisation
 
-    Le SDK gère automatiquement l'authentification :
-    - **Legacy API** : Basic Auth avec `merchantId` et `apiKey`
-    - **New API** : OAuth2 client_credentials avec auto-refresh
+    ```php
+    use QrCommunication\VivaMerchant\VivaClient;
+
+    $viva = new VivaClient(
+        merchantId: 'votre-uuid',
+        apiKey: 'votre-api-key',
+        clientId: 'xxx.apps.vivapayments.com',
+        clientSecret: 'votre-secret',
+        environment: 'demo', // ou 'production'
+    );
+    ```
+
+    ## Ressources disponibles
+
+    | Propriété | Classe | Description |
+    |-----------|--------|-------------|
+    | `$viva->orders` | `Orders` | Ordres de paiement Smart Checkout |
+    | `$viva->transactions` | `Transactions` | Consultation, remboursement, capture, récurrent |
+    | `$viva->sources` | `Sources` | Sources de paiement |
+    | `$viva->wallets` | `Wallets` | Portefeuilles, soldes, transferts |
+    | `$viva->bankAccounts` | `BankAccounts` | Comptes bancaires IBAN, virements SEPA |
+    | `$viva->nativeCheckout` | `NativeCheckout` | Apple Pay / Google Pay |
+    | `$viva->dataServices` | `DataServices` | Rapports MT940, souscriptions webhook |
+    | `$viva->webhooks` | `Webhooks` | Vérification et parsing des webhooks |
+    | `$viva->account` | `Account` | Informations du compte marchand |
 
     ## Montants
 
-    Tous les montants sont en **centimes** (int). Exemple : 1500 = 15,00 EUR.
+    Tous les montants sont en **centimes** (`int`). Exemple : `1500` = 15,00 EUR.
+
+    ## Gestion d'erreurs
+
+    Le SDK lève des exceptions typées :
+
+    | Exception | Quand |
+    |-----------|-------|
+    | `AuthenticationException` | Échec OAuth2 (identifiants invalides) |
+    | `ApiException` | Erreur retournée par l'API Viva (4xx, 5xx) |
+    | `ValidationException` | Erreur de validation (422) |
+    | `VivaException` | Classe de base pour toutes les exceptions SDK |
+
+    ```php
+    use QrCommunication\VivaMerchant\Exceptions\ApiException;
+    use QrCommunication\VivaMerchant\Exceptions\AuthenticationException;
+
+    try {
+        $order = $viva->orders->create(amount: 1500);
+    } catch (AuthenticationException $e) {
+        // Identifiants invalides
+    } catch (ApiException $e) {
+        echo $e->httpStatus;    // 400, 404, etc.
+        echo $e->responseBody;  // Réponse brute Viva
+        echo $e->getErrorCode();
+        echo $e->getErrorText();
+    }
+    ```
   contact:
     name: QrCommunication
     email: dev@praticonnect.com
@@ -33,897 +80,421 @@ info:
     name: MIT
     url: https://opensource.org/licenses/MIT
 
-servers:
-  - url: https://demo-api.vivapayments.com
-    description: Demo (sandbox)
-  - url: https://api.vivapayments.com
-    description: Production
-  - url: https://demo.vivapayments.com
-    description: Demo Legacy API
-  - url: https://www.vivapayments.com
-    description: Production Legacy API
-
 tags:
+  - name: VivaClient
+    description: |
+      Point d'entrée du SDK — instanciation, test de connexion, gestion du token.
+
+      ```php
+      use QrCommunication\VivaMerchant\VivaClient;
+      ```
   - name: Orders
-    description: Smart Checkout — création d'ordres de paiement (Legacy API, Basic Auth)
+    description: |
+      `$viva->orders` — Ordres de paiement Smart Checkout.
+
+      Crée des ordres de paiement, récupère leur statut, génère les URLs de checkout.
+
+      ```php
+      $order = $viva->orders->create(amount: 1500, customerDescription: 'Consultation');
+      // Rediriger le client vers $order['checkout_url']
+      ```
   - name: Transactions
-    description: Consultation, remboursement, capture et paiements récurrents (Legacy + New API)
+    description: |
+      `$viva->transactions` — Consultation, remboursement, capture et paiements récurrents.
+
+      ```php
+      $txn = $viva->transactions->get('uuid');
+      $viva->transactions->cancel('uuid', amount: 500);
+      $viva->transactions->capture('uuid', amount: 1500);
+      $viva->transactions->recurring('initial-uuid', amount: 1500);
+      ```
   - name: Sources
-    description: Gestion des sources de paiement (Legacy API, Basic Auth)
+    description: |
+      `$viva->sources` — Gestion des sources de paiement.
+
+      Les sources définissent les domaines autorisés et les URLs de redirection après paiement.
   - name: Wallets
-    description: Portefeuilles — soldes, transferts, Account API (Legacy + New API)
+    description: |
+      `$viva->wallets` — Portefeuilles, soldes et transferts.
+
+      Gère les sous-comptes (wallets) du marchand, consulte les soldes et effectue des transferts entre wallets.
   - name: BankAccounts
-    description: Comptes bancaires — IBAN, virements SEPA (New API, Bearer OAuth2)
+    description: |
+      `$viva->bankAccounts` — Comptes bancaires et virements SEPA.
+
+      Lie des IBANs, vérifie les options de transfert, calcule les frais et exécute des virements.
   - name: NativeCheckout
-    description: Apple Pay et Google Pay — charge tokens et transactions natives (New API, Bearer OAuth2)
+    description: |
+      `$viva->nativeCheckout` — Paiements Apple Pay et Google Pay.
+
+      Génère des tokens de charge à partir des données Apple Pay / Google Pay, puis exécute les transactions.
   - name: DataServices
-    description: Reporting MT940, abonnements webhook, génération de fichiers (New API, Bearer OAuth2)
-  - name: Account
-    description: Informations du compte marchand (New API, Bearer OAuth2)
+    description: |
+      `$viva->dataServices` — Rapports MT940 et souscriptions webhook.
+
+      Récupère les relevés bancaires au format MT940 et gère les souscriptions aux événements de fichiers.
   - name: Webhooks
-    description: Vérification et parsing des événements webhook (côté serveur, pas d'auth)
+    description: |
+      `$viva->webhooks` — Vérification et parsing des webhooks Viva Wallet.
 
-components:
-  securitySchemes:
-    BasicAuth:
-      type: http
-      scheme: basic
-      description: Legacy API — MerchantID comme username, APIKey comme password
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: OAuth2
-      description: New API — Token obtenu via OAuth2 client_credentials
+      Gère la vérification GET et le parsing des événements POST. 21 types d'événements supportés.
+  - name: Account
+    description: |
+      `$viva->account` — Informations du compte marchand.
 
-  schemas:
-    # ==================== Orders ====================
-    OrderCreateRequest:
-      type: object
-      required: [Amount]
-      properties:
-        Amount:
-          type: integer
-          description: Montant en centimes
-          example: 1500
-        CustomerTrns:
-          type: string
-          nullable: true
-          description: Description affichée au client
-          example: Consultation initiale
-        MerchantTrns:
-          type: string
-          nullable: true
-          description: Référence interne
-          example: session_123
-        SourceCode:
-          type: string
-          nullable: true
-          description: Code source de paiement
-          example: "1234"
-        AllowRecurring:
-          type: boolean
-          default: false
-          description: Autoriser la tokenisation de la carte
-        IsPreAuth:
-          type: boolean
-          default: false
-          description: Pré-autorisation uniquement
-        MaxInstallments:
-          type: integer
-          nullable: true
-          description: Nombre maximum de versements
-          example: 3
+      Récupère les détails du compte et les soldes des portefeuilles.
+  - name: Enums
+    description: |
+      Enums PHP 8.1+ fournis par le SDK pour le typage strict.
 
-    OrderCreateResponse:
-      type: object
-      properties:
-        order_code:
-          type: integer
-          description: Code de l'ordre
-          example: 1234567890
-        checkout_url:
-          type: string
-          format: uri
-          description: URL de checkout Smart Checkout
-          example: https://demo.vivapayments.com/web/checkout?ref=1234567890
+      - `Environment` — `demo` | `production`
+      - `Currency` — Codes ISO 4217 numériques (978 = EUR, 826 = GBP, etc.)
+      - `TransactionStatus` — Statuts de transaction (`F`, `A`, `C`, `E`, `M`, `X`, `R`)
+  - name: Exceptions
+    description: |
+      Hiérarchie d'exceptions du SDK.
 
-    OrderStatusResponse:
-      type: object
-      properties:
-        OrderCode:
-          type: integer
-          example: 1234567890
-        ErrorCode:
-          type: integer
-          example: 0
-        ErrorText:
-          type: string
-          example: ""
-        StateId:
-          type: integer
-          description: "0=Pending, 1=Expired, 2=Cancelled, 3=Paid"
-          example: 3
-        FullName:
-          type: string
-          example: Jean Dupont
-
-    # ==================== Transactions ====================
-    TransactionLegacyResponse:
-      type: object
-      properties:
-        TransactionId:
-          type: string
-          format: uuid
-          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-        Amount:
-          type: number
-          format: float
-          example: 15.00
-        StatusId:
-          type: string
-          example: F
-        OrderCode:
-          type: integer
-          example: 1234567890
-        CurrencyCode:
-          type: string
-          example: EUR
-
-    TransactionV2Response:
-      type: object
-      properties:
-        email:
-          type: string
-          example: client@example.com
-        amount:
-          type: number
-          format: float
-          example: 15.00
-        orderCode:
-          type: integer
-          example: 1234567890
-        statusId:
-          type: string
-          example: F
-        fullName:
-          type: string
-          example: Jean Dupont
-        cardNumber:
-          type: string
-          description: Numéro masqué
-          example: "411111XXXXXX1111"
-        currencyCode:
-          type: integer
-          example: 978
-        recurringSupport:
-          type: boolean
-          example: true
-        cardUniqueReference:
-          type: string
-          example: "ref-unique-123"
-
-    TransactionListResponse:
-      type: object
-      properties:
-        Transactions:
-          type: array
-          items:
-            $ref: '#/components/schemas/TransactionLegacyResponse'
-
-    CancelResponse:
-      type: object
-      properties:
-        TransactionId:
-          type: string
-          format: uuid
-          example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
-
-    CaptureRequest:
-      type: object
-      required: [Amount]
-      properties:
-        Amount:
-          type: integer
-          description: Montant à capturer en centimes
-          example: 1500
-
-    RecurringRequest:
-      type: object
-      required: [Amount]
-      properties:
-        Amount:
-          type: integer
-          description: Montant en centimes
-          example: 1500
-        SourceCode:
-          type: string
-          nullable: true
-          example: "1234"
-
-    # ==================== Sources ====================
-    SourceCreateRequest:
-      type: object
-      required: [Name, SourceCode]
-      properties:
-        Name:
-          type: string
-          example: Mon site web
-        SourceCode:
-          type: string
-          example: "1234"
-        Domain:
-          type: string
-          nullable: true
-          example: example.com
-        PathSuccess:
-          type: string
-          nullable: true
-          example: /payment/success
-        PathFail:
-          type: string
-          nullable: true
-          example: /payment/failed
-
-    SourceResponse:
-      type: object
-      properties:
-        SourceCode:
-          type: string
-          example: "1234"
-        Name:
-          type: string
-          example: Mon site web
-        Domain:
-          type: string
-          example: example.com
-
-    # ==================== Wallets ====================
-    WalletResponse:
-      type: object
-      properties:
-        Available:
-          type: number
-          format: float
-          example: 1500.50
-        Pending:
-          type: number
-          format: float
-          example: 200.00
-        Reserved:
-          type: number
-          format: float
-          example: 0.00
-        CurrencyCode:
-          type: string
-          example: EUR
-
-    WalletBalanceResponse:
-      type: object
-      properties:
-        available:
-          type: number
-          format: float
-          example: 1500.50
-        pending:
-          type: number
-          format: float
-          example: 200.00
-        reserved:
-          type: number
-          format: float
-          example: 0.00
-        currency:
-          type: string
-          example: EUR
-
-    WalletTransferRequest:
-      type: object
-      required: [Amount, SourceWalletId, TargetWalletId]
-      properties:
-        Amount:
-          type: integer
-          description: Montant en centimes
-          example: 5000
-        SourceWalletId:
-          type: string
-          format: uuid
-        TargetWalletId:
-          type: string
-          format: uuid
-        Description:
-          type: string
-          nullable: true
-          example: Transfert mensuel
-
-    WalletDetailedResponse:
-      type: object
-      properties:
-        iban:
-          type: string
-          example: "GR1234567890123456789012345"
-        walletId:
-          type: integer
-          example: 12345
-        amount:
-          type: number
-          format: float
-          example: 1500.50
-        isPrimary:
-          type: boolean
-          example: true
-        currencyCode:
-          type: string
-          example: EUR
-        friendlyName:
-          type: string
-          nullable: true
-          example: Compte principal
-
-    WalletCreateRequest:
-      type: object
-      required: [friendlyName]
-      properties:
-        friendlyName:
-          type: string
-          example: "Épargne"
-        currencyCode:
-          type: string
-          default: EUR
-          example: EUR
-
-    WalletUpdateRequest:
-      type: object
-      required: [friendlyName]
-      properties:
-        friendlyName:
-          type: string
-          example: Nouveau nom
-
-    # ==================== BankAccounts ====================
-    BankAccountLinkRequest:
-      type: object
-      required: [iban, beneficiaryName]
-      properties:
-        iban:
-          type: string
-          example: FR7630006000011234567890189
-        beneficiaryName:
-          type: string
-          example: Jean Dupont
-        friendlyName:
-          type: string
-          nullable: true
-          example: Compte principal
-
-    BankAccountLinkResponse:
-      type: object
-      properties:
-        bankAccountId:
-          type: string
-          format: uuid
-          example: ba-uuid-123
-        isVivaIban:
-          type: boolean
-          example: false
-
-    BankAccountResponse:
-      type: object
-      properties:
-        bankAccountId:
-          type: string
-          format: uuid
-        iban:
-          type: string
-          example: FR7630006000011234567890189
-        beneficiaryName:
-          type: string
-          example: Jean Dupont
-        friendlyName:
-          type: string
-          nullable: true
-        isVivaIban:
-          type: boolean
-
-    TransferOptionsResponse:
-      type: object
-      properties:
-        instructionTypes:
-          type: array
-          items:
-            type: object
-            properties:
-              type:
-                type: string
-                example: SHA
-              isInstant:
-                type: boolean
-                example: false
-              fee:
-                type: integer
-                example: 150
-
-    FeeCommandRequest:
-      type: object
-      required: [amount, walletId]
-      properties:
-        amount:
-          type: integer
-          description: Montant en centimes
-          example: 50000
-        walletId:
-          type: string
-          format: uuid
-        isInstant:
-          type: boolean
-          default: false
-        instructionType:
-          type: string
-          default: SHA
-          enum: [SHA, OUR]
-
-    FeeCommandResponse:
-      type: object
-      properties:
-        bankCommandId:
-          type: string
-          format: uuid
-        fee:
-          type: integer
-          example: 150
-
-    BankTransferRequest:
-      type: object
-      required: [amount, walletId]
-      properties:
-        amount:
-          type: integer
-          description: Montant en centimes
-          example: 50000
-        walletId:
-          type: string
-          format: uuid
-        bankCommandId:
-          type: string
-          format: uuid
-          nullable: true
-        description:
-          type: string
-          nullable: true
-          example: Virement mensuel
-
-    BankTransferResponse:
-      type: object
-      properties:
-        commandId:
-          type: string
-          format: uuid
-        isInstant:
-          type: boolean
-          example: false
-        fee:
-          type: integer
-          example: 150
-
-    # ==================== NativeCheckout ====================
-    ChargeTokenRequest:
-      type: object
-      required: [amount, chargeData, paymentMethodId]
-      properties:
-        amount:
-          type: integer
-          description: Montant en centimes
-          example: 1500
-        chargeData:
-          type: string
-          description: Données de paiement chiffrées Apple Pay / Google Pay
-          example: "<encrypted payment data>"
-        paymentMethodId:
-          type: integer
-          description: "10 = Apple Pay, 11 = Google Pay"
-          enum: [10, 11]
-          example: 10
-        sourceCode:
-          type: string
-          nullable: true
-          example: "1234"
-        dynamicDescriptor:
-          type: string
-          nullable: true
-          example: "MYSHOP*Purchase"
-
-    ChargeTokenResponse:
-      type: object
-      properties:
-        chargeToken:
-          type: string
-          description: Token de charge à utiliser pour créer la transaction
-          example: "ctok_abc123def456"
-        redirectToACSForm:
-          type: string
-          nullable: true
-          description: Formulaire HTML 3DS si requis
-
-    NativeTransactionRequest:
-      type: object
-      required: [chargeToken, amount]
-      properties:
-        chargeToken:
-          type: string
-          example: "ctok_abc123def456"
-        amount:
-          type: integer
-          description: Montant en centimes
-          example: 1500
-        currencyCode:
-          type: integer
-          description: Code devise ISO 4217
-          default: 978
-          example: 978
-        sourceCode:
-          type: string
-          nullable: true
-          example: "1234"
-        merchantTrns:
-          type: string
-          nullable: true
-          description: Référence interne
-          example: "ref_123"
-        customerTrns:
-          type: string
-          nullable: true
-          description: Description visible au client
-          example: "Achat en ligne"
-        preauth:
-          type: boolean
-          default: false
-          description: Pré-autorisation uniquement
-        tipAmount:
-          type: integer
-          default: 0
-          description: Pourboire en centimes
-        installments:
-          type: integer
-          nullable: true
-          default: 0
-          description: Nombre de versements
-
-    NativeTransactionResponse:
-      type: object
-      properties:
-        transactionId:
-          type: string
-          format: uuid
-          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-        statusId:
-          type: string
-          example: F
-        amount:
-          type: integer
-          example: 1500
-        orderCode:
-          type: integer
-          example: 1234567890
-
-    # ==================== DataServices ====================
-    Mt940Response:
-      type: object
-      properties:
-        data:
-          type: string
-          description: Données MT940 au format texte bancaire standard
-          example: ":20:STARTOFDAY\n:25:VIVAWALLET/123456\n..."
-
-    WebhookSubscriptionRequest:
-      type: object
-      required: [url]
-      properties:
-        url:
-          type: string
-          format: uri
-          example: https://example.com/webhooks/viva
-        eventType:
-          type: string
-          default: SaleTransactionsFileGenerated
-          example: SaleTransactionsFileGenerated
-
-    WebhookSubscriptionResponse:
-      type: object
-      properties:
-        subscriptionId:
-          type: string
-          format: uuid
-          example: "sub-uuid-123"
-        url:
-          type: string
-          format: uri
-          example: https://example.com/webhooks/viva
-        eventType:
-          type: string
-          example: SaleTransactionsFileGenerated
-
-    FileRequestBody:
-      type: object
-      required: [date]
-      properties:
-        date:
-          type: string
-          format: date
-          example: "2026-03-18"
-
-    # ==================== Account ====================
-    AccountInfoResponse:
-      type: object
-      properties:
-        merchantId:
-          type: string
-          format: uuid
-        businessName:
-          type: string
-          example: Ma Boutique SAS
-        email:
-          type: string
-          format: email
-          example: contact@maboutique.com
-        countryCode:
-          type: string
-          example: FR
-
-    # ==================== Webhooks ====================
-    WebhookVerificationResponse:
-      type: object
-      properties:
-        StatusCode:
-          type: integer
-          example: 0
-        Key:
-          type: string
-          example: your-verification-key
-
-    WebhookPayload:
-      type: object
-      properties:
-        EventTypeId:
-          type: integer
-          description: "ID de l'événement (voir table des événements)"
-          example: 1796
-        EventData:
-          type: object
-          properties:
-            TransactionId:
-              type: string
-              format: uuid
-            Amount:
-              type: number
-              format: float
-            StatusId:
-              type: string
-            OrderCode:
-              type: integer
-
-    WebhookParsedResponse:
-      type: object
-      properties:
-        event_type:
-          type: string
-          description: Type d'événement résolu
-          example: transaction.payment.created
-        event_type_id:
-          type: integer
-          description: ID numérique de l'événement Viva
-          example: 1796
-        event_data:
-          type: object
-          description: Données de l'événement
-
-    # ==================== Errors ====================
-    ErrorResponse:
-      type: object
-      properties:
-        ErrorCode:
-          type: integer
-          example: 1
-        ErrorText:
-          type: string
-          example: Invalid order code
-        Success:
-          type: boolean
-          example: false
-
-    ApiErrorResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          example: Unauthorized
-        detail:
-          type: string
-          nullable: true
+      ```
+      RuntimeException
+      └── VivaException
+          ├── ApiException
+          ├── AuthenticationException
+          └── ValidationException
+      ```
 
 paths:
-  # ==================== Orders ====================
-  /api/orders:
+  # ============================================================
+  # VivaClient
+  # ============================================================
+  /VivaClient/__construct:
     post:
-      tags: [Orders]
-      summary: Créer un ordre de paiement
+      tags: [VivaClient]
+      operationId: VivaClient__construct
+      summary: new VivaClient(...)
       description: |
-        Crée un ordre Smart Checkout et retourne l'URL de checkout.
-        **Legacy API** — Basic Auth — PascalCase.
-      operationId: createOrder
-      security:
-        - BasicAuth: []
+        Instancie le client SDK. L'authentification OAuth2 est automatique au premier appel API.
+
+        ```php
+        use QrCommunication\VivaMerchant\VivaClient;
+        use QrCommunication\VivaMerchant\Enums\Environment;
+
+        $viva = new VivaClient(
+            merchantId: 'votre-merchant-uuid',
+            apiKey: 'votre-api-key',
+            clientId: 'xxx.apps.vivapayments.com',
+            clientSecret: 'votre-client-secret',
+            environment: 'demo', // string ou Environment enum
+        );
+        ```
+
+        **Où trouver les identifiants ?**
+        - `merchantId` + `apiKey` → Viva Dashboard > Settings > API Access
+        - `clientId` + `clientSecret` → Viva Dashboard > Settings > API Access > OAuth Clients
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/OrderCreateRequest'
-            examples:
-              simple:
-                summary: Ordre simple
-                value:
-                  Amount: 1500
-                  CustomerTrns: Consultation
-              full:
-                summary: Ordre complet
-                value:
-                  Amount: 1500
-                  CustomerTrns: Consultation initiale
-                  MerchantTrns: session_123
-                  SourceCode: "1234"
-                  AllowRecurring: true
-                  IsPreAuth: false
-                  MaxInstallments: 3
+              $ref: '#/components/schemas/VivaClientConstructorParams'
       responses:
         '200':
-          description: Ordre créé avec succès
+          description: Instance `VivaClient` créée
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderCreateResponse'
-        '400':
-          description: Erreur de création
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/VivaClientInstance'
 
-  /api/orders/{orderCode}:
+  /VivaClient/testConnection:
+    post:
+      tags: [VivaClient]
+      operationId: VivaClient_testConnection
+      summary: "$viva->testConnection()"
+      description: |
+        Teste la connexion en s'authentifiant et en récupérant les infos du compte.
+
+        ```php
+        if ($viva->testConnection()) {
+            echo 'Connexion OK';
+        } else {
+            echo 'Échec de connexion';
+        }
+        ```
+      parameters: []
+      responses:
+        '200':
+          description: "`bool` — `true` si la connexion est réussie, `false` sinon"
+          content:
+            application/json:
+              schema:
+                type: boolean
+
+  /VivaClient/invalidateToken:
+    post:
+      tags: [VivaClient]
+      operationId: VivaClient_invalidateToken
+      summary: "$viva->invalidateToken()"
+      description: |
+        Force la ré-authentification au prochain appel API. Utile si le token a été révoqué.
+
+        ```php
+        $viva->invalidateToken();
+        // Le prochain appel API demandera un nouveau token OAuth2
+        ```
+      responses:
+        '200':
+          description: "`void` — Le token est invalidé"
+
+  /VivaClient/getConfig:
+    get:
+      tags: [VivaClient]
+      operationId: VivaClient_getConfig
+      summary: "$viva->getConfig()"
+      description: |
+        Retourne l'objet `Config` pour introspection ou débogage.
+
+        ```php
+        $config = $viva->getConfig();
+        echo $config->merchantId;
+        echo $config->environment->value; // 'demo' ou 'production'
+        echo $config->isProduction();     // bool
+        echo $config->apiUrl();           // 'https://demo-api.vivapayments.com'
+        echo $config->legacyUrl();        // 'https://demo.vivapayments.com'
+        echo $config->checkoutUrl();      // 'https://demo.vivapayments.com/web/checkout'
+        echo $config->accountsUrl();      // 'https://demo-accounts.vivapayments.com'
+        ```
+      responses:
+        '200':
+          description: Objet `Config`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+
+  # ============================================================
+  # Orders
+  # ============================================================
+  /Orders/create:
+    post:
+      tags: [Orders]
+      operationId: Orders_create
+      summary: "$viva->orders->create()"
+      description: |
+        Crée un ordre de paiement Smart Checkout. Le client est redirigé vers l'URL de checkout Viva pour finaliser le paiement.
+
+        ```php
+        $order = $viva->orders->create(
+            amount: 1500,                         // 15,00 EUR (centimes)
+            customerDescription: 'Consultation',  // Affiché au client
+            merchantReference: 'session_123',     // Référence interne
+            allowRecurring: true,                 // Tokeniser la carte
+            preauth: false,                       // Pré-autorisation ?
+            maxInstallments: 3,                   // Paiement en 3x
+        );
+
+        echo $order['order_code'];   // 1234567890
+        echo $order['checkout_url']; // https://demo.vivapayments.com/web/checkout?ref=1234567890
+
+        // Rediriger le client :
+        header('Location: ' . $order['checkout_url']);
+        ```
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrdersCreateParams'
+      responses:
+        '200':
+          description: Ordre créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrdersCreateResult'
+        '400':
+          description: "`ApiException` — Erreur de création (montant invalide, source inconnue, etc.)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /Orders/get:
     get:
       tags: [Orders]
-      summary: Récupérer le statut d'un ordre
-      operationId: getOrder
-      security:
-        - BasicAuth: []
+      operationId: Orders_get
+      summary: "$viva->orders->get()"
+      description: |
+        Récupère le statut d'un ordre de paiement.
+
+        ```php
+        $order = $viva->orders->get(orderCode: 1234567890);
+
+        echo $order['StateId'];       // 0 = en attente, 2 = payé
+        echo $order['Amount'];        // 1500
+        echo $order['PaymentId'];     // UUID de la transaction
+        ```
       parameters:
         - name: orderCode
-          in: path
+          in: query
           required: true
           schema:
             type: integer
-          example: 1234567890
+          description: "Code de l'ordre (retourné par `create()`)"
       responses:
         '200':
-          description: Statut de l'ordre
+          description: Données brutes de l'ordre Viva
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderStatusResponse'
+                type: object
+                description: "array<string, mixed>"
+        '400':
+          description: "`ApiException`"
 
+  /Orders/cancel:
     delete:
       tags: [Orders]
-      summary: Annuler un ordre non payé
-      operationId: cancelOrder
-      security:
-        - BasicAuth: []
+      operationId: Orders_cancel
+      summary: "$viva->orders->cancel()"
+      description: |
+        Annule un ordre de paiement non payé.
+
+        ```php
+        $result = $viva->orders->cancel(orderCode: 1234567890);
+        ```
       parameters:
         - name: orderCode
-          in: path
+          in: query
           required: true
           schema:
             type: integer
-          example: 1234567890
+          description: Code de l'ordre à annuler
       responses:
         '200':
           description: Ordre annulé
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: "`ApiException` — Ordre déjà payé ou introuvable"
 
-  # ==================== Transactions ====================
-  /api/transactions/{transactionId}:
+  /Orders/checkoutUrl:
     get:
-      tags: [Transactions]
-      summary: Détails complets d'une transaction (Legacy)
+      tags: [Orders]
+      operationId: Orders_checkoutUrl
+      summary: "$viva->orders->checkoutUrl()"
       description: |
-        Retourne les détails complets de la transaction incluant Fee, Commission, Order, Payment, CreditCard.
-        **Legacy API** — Basic Auth — PascalCase.
-      operationId: getTransaction
-      security:
-        - BasicAuth: []
-      parameters:
-        - name: transactionId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Détails de la transaction
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TransactionLegacyResponse'
+        Génère l'URL Smart Checkout pour un code d'ordre existant, sans appel API.
 
-    post:
-      tags: [Transactions]
-      summary: Capturer un preauth ou paiement récurrent
-      description: |
-        Utilisé pour capturer une pré-autorisation ou déclencher un paiement récurrent.
-        **Legacy API** — Basic Auth — PascalCase.
-      operationId: captureOrRecurring
-      security:
-        - BasicAuth: []
+        ```php
+        $url = $viva->orders->checkoutUrl(orderCode: 1234567890);
+        // => 'https://demo.vivapayments.com/web/checkout?ref=1234567890'
+        ```
       parameters:
-        - name: transactionId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CaptureRequest'
-      responses:
-        '200':
-          description: Transaction exécutée
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TransactionLegacyResponse'
-
-    delete:
-      tags: [Transactions]
-      summary: Annuler / rembourser une transaction
-      description: |
-        Même jour = void (annulation). Jour suivant = refund (remboursement).
-        **Legacy API** — Basic Auth.
-      operationId: cancelTransaction
-      security:
-        - BasicAuth: []
-      parameters:
-        - name: transactionId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: amount
+        - name: orderCode
           in: query
-          required: false
+          required: true
           schema:
             type: integer
-          description: Montant en centimes (null = remboursement total)
-        - name: sourceCode
-          in: query
-          required: false
-          schema:
-            type: string
       responses:
         '200':
-          description: Transaction annulée/remboursée
+          description: "`string` — URL de checkout"
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "https://demo.vivapayments.com/web/checkout?ref=1234567890"
+
+  # ============================================================
+  # Transactions
+  # ============================================================
+  /Transactions/get:
+    get:
+      tags: [Transactions]
+      operationId: Transactions_get
+      summary: "$viva->transactions->get()"
+      description: |
+        Récupère les détails complets d'une transaction (Legacy API, réponse PascalCase).
+
+        Inclut : Fee, Commission, Order, Payment, CreditCard, etc.
+
+        ```php
+        $txn = $viva->transactions->get('transaction-uuid');
+
+        echo $txn['Transactions'][0]['Amount'];       // 1500
+        echo $txn['Transactions'][0]['StatusId'];      // 'F'
+        echo $txn['Transactions'][0]['CreditCard']['Number']; // '411111...1111'
+        ```
+      parameters:
+        - name: transactionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID de la transaction
+      responses:
+        '200':
+          description: Données complètes de la transaction (PascalCase)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CancelResponse'
+                type: object
+                description: "array<string, mixed>"
+        '400':
+          description: "`ApiException`"
 
-  /api/transactions:
+  /Transactions/getV2:
     get:
       tags: [Transactions]
-      summary: Lister les transactions par date
-      operationId: listTransactions
-      security:
-        - BasicAuth: []
+      operationId: Transactions_getV2
+      summary: "$viva->transactions->getV2()"
+      description: |
+        Récupère les détails d'une transaction via la New API (Bearer, réponse camelCase).
+
+        Réponse plus légère, recommandée pour vérifier les paiements Smart Checkout.
+
+        ```php
+        $txn = $viva->transactions->getV2('transaction-uuid');
+
+        echo $txn['email'];             // 'client@example.com'
+        echo $txn['amount'];            // 15.00 (attention : en EUR, pas en centimes)
+        echo $txn['statusId'];          // 'F'
+        echo $txn['orderCode'];         // 1234567890
+        echo $txn['cardNumber'];        // '411111...1111'
+        echo $txn['recurringSupport'];  // true/false
+        ```
+      parameters:
+        - name: transactionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Données de la transaction (camelCase)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: "array<string, mixed>"
+
+  /Transactions/listByDate:
+    get:
+      tags: [Transactions]
+      operationId: Transactions_listByDate
+      summary: "$viva->transactions->listByDate()"
+      description: |
+        Liste toutes les transactions d'une date donnée.
+
+        ```php
+        $transactions = $viva->transactions->listByDate('2026-03-18');
+
+        foreach ($transactions as $txn) {
+            echo $txn['TransactionId'] . ' — ' . $txn['Amount'] . "\n";
+        }
+        ```
       parameters:
         - name: date
           in: query
@@ -931,89 +502,237 @@ paths:
           schema:
             type: string
             format: date
-          example: "2026-03-18"
+          description: "Date au format `Y-m-d`"
       responses:
         '200':
-          description: Liste des transactions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TransactionListResponse'
-
-  /checkout/v2/transactions/{transactionId}:
-    get:
-      tags: [Transactions]
-      summary: Détails d'une transaction (New API)
-      description: |
-        Retourne une réponse légère en camelCase. Recommandé par Viva pour vérifier les paiements Smart Checkout.
-        **New API** — Bearer OAuth2 — camelCase.
-      operationId: getTransactionV2
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: transactionId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Détails de la transaction
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TransactionV2Response'
-
-  # ==================== Sources ====================
-  /api/sources:
-    get:
-      tags: [Sources]
-      summary: Lister les sources de paiement
-      operationId: listSources
-      security:
-        - BasicAuth: []
-      responses:
-        '200':
-          description: Liste des sources
+          description: Liste de transactions
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/SourceResponse'
+                  type: object
+                description: "array<int, array<string, mixed>>"
 
+  /Transactions/cancel:
+    delete:
+      tags: [Transactions]
+      operationId: Transactions_cancel
+      summary: "$viva->transactions->cancel()"
+      description: |
+        Annule ou rembourse une transaction.
+
+        - Même jour → annulation (void)
+        - Jour passé → remboursement (refund)
+
+        ```php
+        // Remboursement total
+        $result = $viva->transactions->cancel('transaction-uuid');
+
+        // Remboursement partiel (5,00 EUR)
+        $result = $viva->transactions->cancel('transaction-uuid', amount: 500);
+
+        echo $result['TransactionId']; // UUID de la transaction de remboursement
+        ```
+      parameters:
+        - name: transactionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID de la transaction à annuler/rembourser
+        - name: amount
+          in: query
+          required: false
+          schema:
+            type: integer
+            nullable: true
+          description: "Montant en centimes (`null` = remboursement total)"
+        - name: sourceCode
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+          description: Code de la source de paiement
+      responses:
+        '200':
+          description: Transaction annulée/remboursée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  TransactionId:
+                    type: string
+                    description: UUID de la transaction de remboursement
+
+  /Transactions/capture:
+    post:
+      tags: [Transactions]
+      operationId: Transactions_capture
+      summary: "$viva->transactions->capture()"
+      description: |
+        Capture une transaction pré-autorisée.
+
+        ```php
+        // Capture totale
+        $result = $viva->transactions->capture('preauth-uuid', amount: 1500);
+
+        // Capture partielle
+        $result = $viva->transactions->capture('preauth-uuid', amount: 1000);
+        ```
+      parameters:
+        - name: transactionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID de la transaction pré-autorisée
+        - name: amount
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Montant en centimes à capturer
+      responses:
+        '200':
+          description: Transaction capturée
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: "`ApiException` — Capture échouée"
+
+  /Transactions/recurring:
+    post:
+      tags: [Transactions]
+      operationId: Transactions_recurring
+      summary: "$viva->transactions->recurring()"
+      description: |
+        Effectue un paiement récurrent en utilisant le token de la transaction initiale.
+
+        Prérequis : l'ordre initial doit avoir été créé avec `allowRecurring: true`.
+
+        ```php
+        // Charge récurrente de 15,00 EUR
+        $result = $viva->transactions->recurring(
+            initialTransactionId: 'initial-txn-uuid',
+            amount: 1500,
+        );
+        ```
+      parameters:
+        - name: initialTransactionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID de la transaction initiale (avec carte tokenisée)
+        - name: amount
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Montant en centimes
+        - name: sourceCode
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+          description: Code de la source de paiement
+      responses:
+        '200':
+          description: Paiement récurrent effectué
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: "`ApiException` — Charge récurrente échouée"
+
+  # ============================================================
+  # Sources
+  # ============================================================
+  /Sources/list:
+    get:
+      tags: [Sources]
+      operationId: Sources_list
+      summary: "$viva->sources->list()"
+      description: |
+        Liste toutes les sources de paiement du marchand.
+
+        ```php
+        $sources = $viva->sources->list();
+
+        foreach ($sources as $source) {
+            echo $source['Name'] . ' — ' . $source['SourceCode'] . "\n";
+        }
+        ```
+      responses:
+        '200':
+          description: Liste des sources de paiement
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                description: "array<int, array<string, mixed>>"
+
+  /Sources/create:
     post:
       tags: [Sources]
-      summary: Créer une source de paiement
-      operationId: createSource
-      security:
-        - BasicAuth: []
+      operationId: Sources_create
+      summary: "$viva->sources->create()"
+      description: |
+        Crée une nouvelle source de paiement.
+
+        ```php
+        $source = $viva->sources->create(
+            name: 'Mon site web',
+            sourceCode: '1234',
+            domain: 'www.example.com',
+            pathSuccess: '/paiement/succes',
+            pathFail: '/paiement/echec',
+        );
+        ```
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SourceCreateRequest'
+              $ref: '#/components/schemas/SourcesCreateParams'
       responses:
         '200':
           description: Source créée
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SourceResponse'
+                type: object
 
-  # ==================== Wallets ====================
-  /api/wallets:
+  # ============================================================
+  # Wallets
+  # ============================================================
+  /Wallets/list:
     get:
       tags: [Wallets]
-      summary: Lister les portefeuilles
+      operationId: Wallets_list
+      summary: "$viva->wallets->list()"
       description: |
-        Retourne tous les wallets du marchand avec les soldes.
-        **New API** — Bearer OAuth2.
-      operationId: listWallets
-      security:
-        - BearerAuth: []
+        Liste tous les portefeuilles du marchand (réponse basique).
+
+        ```php
+        $wallets = $viva->wallets->list();
+
+        foreach ($wallets as $wallet) {
+            echo $wallet['Available'] . ' ' . $wallet['CurrencyCode'] . "\n";
+        }
+        ```
       responses:
         '200':
           description: Liste des portefeuilles
@@ -1022,119 +741,200 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/WalletResponse'
+                  type: object
 
-  /api/wallets/transfer:
+  /Wallets/balance:
+    get:
+      tags: [Wallets]
+      operationId: Wallets_balance
+      summary: "$viva->wallets->balance()"
+      description: |
+        Retourne le solde agrégé de tous les portefeuilles.
+
+        ```php
+        $balance = $viva->wallets->balance();
+
+        echo $balance['available'];  // 150.50
+        echo $balance['pending'];    // 25.00
+        echo $balance['reserved'];   // 0.00
+        echo $balance['currency'];   // 'EUR'
+        ```
+      responses:
+        '200':
+          description: Solde agrégé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletBalance'
+
+  /Wallets/transfer:
     post:
       tags: [Wallets]
-      summary: Transfert entre portefeuilles
+      operationId: Wallets_transfer
+      summary: "$viva->wallets->transfer()"
       description: |
-        Transfère des fonds entre deux wallets Viva Wallet.
-        **Legacy API** — Basic Auth — PascalCase.
+        Transfère de l'argent entre deux portefeuilles Viva.
 
-        Prérequis : « Allow transfers between accounts » activé dans Settings > API Access.
-      operationId: transferWallet
-      security:
-        - BasicAuth: []
+        Prérequis : « Allow transfers between accounts » doit être activé dans Settings > API Access.
+
+        ```php
+        $result = $viva->wallets->transfer(
+            amount: 5000,                        // 50,00 EUR
+            sourceWalletId: 'source-uuid',
+            targetWalletId: 'target-uuid',
+            description: 'Transfert mensuel',
+        );
+        ```
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WalletTransferRequest'
+              $ref: '#/components/schemas/WalletTransferParams'
       responses:
         '200':
           description: Transfert effectué
+          content:
+            application/json:
+              schema:
+                type: object
 
-  /walletaccounts/v1/wallets:
+  /Wallets/listDetailed:
     get:
       tags: [Wallets]
-      summary: Liste détaillée des portefeuilles (Account API)
+      operationId: Wallets_listDetailed
+      summary: "$viva->wallets->listDetailed()"
       description: |
-        Réponse enrichie avec IBAN, SWIFT, friendlyName.
-        **New API** — Bearer OAuth2 — camelCase.
-      operationId: listWalletsDetailed
-      security:
-        - BearerAuth: []
+        Liste les portefeuilles avec des détails enrichis (IBAN, SWIFT, etc.).
+
+        ```php
+        $wallets = $viva->wallets->listDetailed();
+
+        foreach ($wallets as $wallet) {
+            echo $wallet['iban'] . ' — ' . $wallet['amount'] . "\n";
+            echo $wallet['isPrimary'] ? 'Principal' : 'Secondaire';
+        }
+        ```
       responses:
         '200':
-          description: Liste détaillée
+          description: Liste détaillée des portefeuilles
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/WalletDetailedResponse'
+                  $ref: '#/components/schemas/WalletDetailed'
 
+  /Wallets/create:
     post:
       tags: [Wallets]
-      summary: Créer un sous-compte (wallet)
-      operationId: createWallet
-      security:
-        - BearerAuth: []
+      operationId: Wallets_create
+      summary: "$viva->wallets->create()"
+      description: |
+        Crée un nouveau portefeuille (sous-compte).
+
+        ```php
+        $wallet = $viva->wallets->create(
+            friendlyName: 'Compte secondaire',
+            currencyCode: 'EUR',
+        );
+        ```
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WalletCreateRequest'
+              type: object
+              required: [friendlyName]
+              properties:
+                friendlyName:
+                  type: string
+                  description: Nom d'affichage du portefeuille
+                currencyCode:
+                  type: string
+                  default: EUR
+                  description: "Code ISO 4217 alpha (ex: `EUR`)"
       responses:
-        '201':
-          description: Wallet créé
+        '200':
+          description: Portefeuille créé
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WalletDetailedResponse'
+                type: object
 
-  /walletaccounts/v1/wallets/{walletId}:
-    post:
+  /Wallets/update:
+    put:
       tags: [Wallets]
-      summary: Renommer un portefeuille
-      operationId: updateWallet
-      security:
-        - BearerAuth: []
+      operationId: Wallets_update
+      summary: "$viva->wallets->update()"
+      description: |
+        Met à jour le nom d'un portefeuille.
+
+        ```php
+        $viva->wallets->update(
+            walletId: 12345,
+            friendlyName: 'Nouveau nom',
+        );
+        ```
       parameters:
         - name: walletId
-          in: path
+          in: query
           required: true
           schema:
             type: integer
-          example: 12345
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WalletUpdateRequest'
+          description: ID du portefeuille
+        - name: friendlyName
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Nouveau nom d'affichage
       responses:
         '200':
-          description: Wallet mis à jour
+          description: Portefeuille mis à jour
+          content:
+            application/json:
+              schema:
+                type: object
 
-  /walletaccounts/v1/transactions:
+  /Wallets/searchTransactions:
     get:
       tags: [Wallets]
-      summary: Rechercher les transactions compte
-      operationId: searchWalletTransactions
-      security:
-        - BearerAuth: []
+      operationId: Wallets_searchTransactions
+      summary: "$viva->wallets->searchTransactions()"
+      description: |
+        Recherche les transactions de compte (tous les portefeuilles).
+
+        ```php
+        $transactions = $viva->wallets->searchTransactions([
+            'date_from' => '2026-03-01',
+            'date_to' => '2026-03-18',
+            'walletId' => 12345,
+        ]);
+
+        foreach ($transactions as $txn) {
+            echo $txn['amount'] . "\n";
+        }
+        ```
       parameters:
-        - name: date_from
+        - name: filters
           in: query
+          required: false
           schema:
-            type: string
-            format: date
-        - name: date_to
-          in: query
-          schema:
-            type: string
-            format: date
-        - name: walletId
-          in: query
-          schema:
-            type: integer
+            type: object
+            properties:
+              date_from:
+                type: string
+                format: date
+              date_to:
+                type: string
+                format: date
+              walletId:
+                type: integer
+          description: "Filtres optionnels (`date_from`, `date_to`, `walletId`)"
       responses:
         '200':
-          description: Transactions trouvées
+          description: Liste de transactions de compte
           content:
             application/json:
               schema:
@@ -1142,20 +942,24 @@ paths:
                 items:
                   type: object
 
-  /walletaccounts/v1/transactions/{transactionId}:
+  /Wallets/getTransaction:
     get:
       tags: [Wallets]
-      summary: Détails d'une transaction compte
-      operationId: getWalletTransaction
-      security:
-        - BearerAuth: []
+      operationId: Wallets_getTransaction
+      summary: "$viva->wallets->getTransaction()"
+      description: |
+        Récupère les détails d'une transaction de compte.
+
+        ```php
+        $txn = $viva->wallets->getTransaction('transaction-uuid');
+        ```
       parameters:
         - name: transactionId
-          in: path
+          in: query
           required: true
           schema:
             type: string
-            format: uuid
+          description: UUID de la transaction de compte
       responses:
         '200':
           description: Détails de la transaction
@@ -1164,249 +968,285 @@ paths:
               schema:
                 type: object
 
-  # ==================== BankAccounts ====================
-  /banktransfers/v1/bankaccounts:
-    get:
-      tags: [BankAccounts]
-      summary: Lister les comptes bancaires liés
-      operationId: listBankAccounts
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Liste des comptes
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/BankAccountResponse'
-
+  # ============================================================
+  # BankAccounts
+  # ============================================================
+  /BankAccounts/link:
     post:
       tags: [BankAccounts]
-      summary: Lier un compte bancaire (IBAN)
-      description: Validation IBAN automatique + enregistrement.
-      operationId: linkBankAccount
-      security:
-        - BearerAuth: []
+      operationId: BankAccounts_link
+      summary: "$viva->bankAccounts->link()"
+      description: |
+        Lie un compte bancaire (validation IBAN + enregistrement).
+
+        ```php
+        $result = $viva->bankAccounts->link(
+            iban: 'FR7630006000011234567890189',
+            beneficiaryName: 'Jean Dupont',
+            friendlyName: 'Compte principal',
+        );
+
+        echo $result['bankAccountId']; // UUID
+        echo $result['isVivaIban'];    // false (IBAN externe)
+        ```
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BankAccountLinkRequest'
+              $ref: '#/components/schemas/BankAccountLinkParams'
       responses:
         '200':
-          description: Compte lié
+          description: Compte bancaire lié
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BankAccountLinkResponse'
+                $ref: '#/components/schemas/BankAccountLinkResult'
 
-  /banktransfers/v1/bankaccounts/{bankAccountId}:
+  /BankAccounts/transferOptions:
     get:
       tags: [BankAccounts]
-      summary: Détails d'un compte bancaire lié
-      operationId: getBankAccount
-      security:
-        - BearerAuth: []
+      operationId: BankAccounts_transferOptions
+      summary: "$viva->bankAccounts->transferOptions()"
+      description: |
+        Récupère les options de transfert disponibles (SEPA standard, SEPA instantané, frais).
+
+        Uniquement pour les IBANs externes — pas pour les wallets Viva internes.
+
+        ```php
+        $options = $viva->bankAccounts->transferOptions('bank-account-uuid');
+        ```
       parameters:
         - name: bankAccountId
-          in: path
+          in: query
           required: true
           schema:
             type: string
             format: uuid
+          description: UUID du compte bancaire lié
       responses:
         '200':
-          description: Détails du compte
+          description: Options de transfert disponibles
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BankAccountResponse'
+                type: object
+                description: "Types d'instruction disponibles (SHA, OUR, instant)"
 
-  /banktransfers/v1/bankaccounts/{bankAccountId}/instructiontypes:
-    get:
-      tags: [BankAccounts]
-      summary: Options de transfert (SEPA standard, instant, SHA, OUR)
-      operationId: getBankTransferOptions
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: bankAccountId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Options disponibles
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TransferOptionsResponse'
-
-  /banktransfers/v1/bankaccounts/{bankAccountId}/fees:
+  /BankAccounts/feeCommand:
     post:
       tags: [BankAccounts]
-      summary: Calculer les frais de transfert
-      operationId: createFeeCommand
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: bankAccountId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      operationId: BankAccounts_feeCommand
+      summary: "$viva->bankAccounts->feeCommand()"
+      description: |
+        Crée une commande de frais pour vérifier le coût d'un virement avant exécution.
+
+        ```php
+        $fees = $viva->bankAccounts->feeCommand(
+            bankAccountId: 'bank-account-uuid',
+            amount: 10000,                    // 100,00 EUR
+            walletId: 'source-wallet-uuid',
+            isInstant: true,                  // SEPA instantané
+            instructionType: 'SHA',           // Frais partagés
+        );
+
+        echo $fees['bankCommandId']; // À passer à send()
+        echo $fees['fee'];           // Frais en centimes
+        ```
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FeeCommandRequest'
+              $ref: '#/components/schemas/BankAccountFeeCommandParams'
       responses:
         '200':
-          description: Frais calculés
+          description: Commande de frais créée
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FeeCommandResponse'
+                $ref: '#/components/schemas/BankAccountFeeCommandResult'
 
-  "/banktransfers/v1/bankaccounts/{bankAccountId}:send":
+  /BankAccounts/send:
     post:
       tags: [BankAccounts]
-      summary: Exécuter un virement SEPA
-      operationId: sendBankTransfer
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: bankAccountId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      operationId: BankAccounts_send
+      summary: "$viva->bankAccounts->send()"
+      description: |
+        Exécute un virement SEPA vers un compte bancaire lié.
+
+        ```php
+        $result = $viva->bankAccounts->send(
+            bankAccountId: 'bank-account-uuid',
+            amount: 10000,
+            walletId: 'source-wallet-uuid',
+            bankCommandId: 'fee-command-uuid',  // Optionnel
+            description: 'Virement mensuel',
+        );
+
+        echo $result['commandId']; // UUID du virement
+        echo $result['isInstant']; // true/false
+        echo $result['fee'];       // Frais en centimes
+        ```
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BankTransferRequest'
+              $ref: '#/components/schemas/BankAccountSendParams'
       responses:
         '200':
           description: Virement exécuté
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BankTransferResponse'
+                $ref: '#/components/schemas/BankAccountSendResult'
 
-  # ==================== NativeCheckout ====================
-  /nativecheckout/v2/chargetokens:
+  /BankAccounts/list:
+    get:
+      tags: [BankAccounts]
+      operationId: BankAccounts_list
+      summary: "$viva->bankAccounts->list()"
+      description: |
+        Liste tous les comptes bancaires liés.
+
+        ```php
+        $accounts = $viva->bankAccounts->list();
+
+        foreach ($accounts as $account) {
+            echo $account['iban'] . ' — ' . $account['beneficiaryName'] . "\n";
+        }
+        ```
+      responses:
+        '200':
+          description: Liste des comptes bancaires
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /BankAccounts/get:
+    get:
+      tags: [BankAccounts]
+      operationId: BankAccounts_get
+      summary: "$viva->bankAccounts->get()"
+      description: |
+        Récupère les détails d'un compte bancaire lié.
+
+        ```php
+        $account = $viva->bankAccounts->get('bank-account-uuid');
+
+        echo $account['iban'];
+        echo $account['beneficiaryName'];
+        ```
+      parameters:
+        - name: bankAccountId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID du compte bancaire
+      responses:
+        '200':
+          description: Détails du compte bancaire
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # ============================================================
+  # NativeCheckout
+  # ============================================================
+  /NativeCheckout/createChargeToken:
     post:
       tags: [NativeCheckout]
-      summary: Générer un token de charge (Apple Pay / Google Pay)
+      operationId: NativeCheckout_createChargeToken
+      summary: "$viva->nativeCheckout->createChargeToken()"
       description: |
-        Convertit les données de paiement Apple Pay ou Google Pay en un token de charge à usage unique.
-        Ce token est ensuite utilisé pour créer la transaction via `/nativecheckout/v2/transactions`.
-        **New API** — Bearer OAuth2 — camelCase.
-      operationId: createChargeToken
-      security:
-        - BearerAuth: []
+        Génère un token de charge à usage unique à partir des données Apple Pay ou Google Pay.
+
+        ```php
+        $token = $viva->nativeCheckout->createChargeToken(
+            amount: 1500,
+            paymentData: $applePayPaymentDataString,
+            paymentMethod: 'applepay',  // ou 'googlepay'
+            sourceCode: '1234',
+        );
+
+        echo $token['chargeToken'];         // Token à passer à createTransaction()
+        echo $token['redirectToACSForm'];    // Formulaire 3DS (si applicable)
+        ```
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ChargeTokenRequest'
-            examples:
-              applePay:
-                summary: Apple Pay
-                value:
-                  amount: 1500
-                  chargeData: "<Apple Pay encrypted data>"
-                  paymentMethodId: 10
-              googlePay:
-                summary: Google Pay
-                value:
-                  amount: 1500
-                  chargeData: "<Google Pay encrypted data>"
-                  paymentMethodId: 11
+              $ref: '#/components/schemas/NativeCheckoutChargeTokenParams'
       responses:
         '200':
           description: Token de charge généré
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChargeTokenResponse'
-        '400':
-          description: Données de paiement invalides
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiErrorResponse'
+                $ref: '#/components/schemas/NativeCheckoutChargeTokenResult'
 
-  /nativecheckout/v2/transactions:
+  /NativeCheckout/createTransaction:
     post:
       tags: [NativeCheckout]
-      summary: Exécuter une transaction native (Apple Pay / Google Pay)
+      operationId: NativeCheckout_createTransaction
+      summary: "$viva->nativeCheckout->createTransaction()"
       description: |
-        Utilise le token de charge obtenu via `/nativecheckout/v2/chargetokens` pour exécuter la transaction.
-        **New API** — Bearer OAuth2 — camelCase.
-      operationId: createNativeTransaction
-      security:
-        - BearerAuth: []
+        Exécute une transaction à partir d'un token de charge obtenu via `createChargeToken()`.
+
+        ```php
+        $txn = $viva->nativeCheckout->createTransaction(
+            chargeToken: $token['chargeToken'],
+            amount: 1500,
+            currencyCode: 978,             // EUR (ISO 4217 numérique)
+            sourceCode: '1234',
+            merchantTrns: 'ref_123',       // Référence interne
+            customerTrns: 'Consultation',  // Affiché au client
+            preauth: false,
+            tipAmount: 0,
+            installments: null,
+        );
+
+        echo $txn['transactionId']; // UUID
+        echo $txn['statusId'];      // 'F' = finalisée
+        echo $txn['amount'];        // 1500
+        echo $txn['orderCode'];     // Code de l'ordre
+        ```
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NativeTransactionRequest'
-            examples:
-              simple:
-                summary: Transaction simple
-                value:
-                  chargeToken: "ctok_abc123def456"
-                  amount: 1500
-              full:
-                summary: Transaction complète
-                value:
-                  chargeToken: "ctok_abc123def456"
-                  amount: 1500
-                  currencyCode: 978
-                  sourceCode: "1234"
-                  merchantTrns: "ref_123"
-                  customerTrns: "Achat en ligne"
-                  preauth: false
-                  tipAmount: 0
-                  installments: 0
+              $ref: '#/components/schemas/NativeCheckoutTransactionParams'
       responses:
         '200':
-          description: Transaction exécutée
+          description: Transaction créée
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NativeTransactionResponse'
-        '400':
-          description: Token invalide ou expiré
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiErrorResponse'
+                $ref: '#/components/schemas/NativeCheckoutTransactionResult'
 
-  # ==================== DataServices ====================
-  /dataservices/v1/mt940:
+  # ============================================================
+  # DataServices
+  # ============================================================
+  /DataServices/mt940:
     get:
       tags: [DataServices]
-      summary: Rapport MT940
+      operationId: DataServices_mt940
+      summary: "$viva->dataServices->mt940()"
       description: |
-        Récupère les données de relevé bancaire au format MT940 pour une date donnée.
-        **New API** — Bearer OAuth2.
-      operationId: getMt940
-      security:
-        - BearerAuth: []
+        Récupère le rapport MT940 (format standard bancaire) pour une date donnée.
+
+        ```php
+        $report = $viva->dataServices->mt940('2026-03-18');
+        ```
       parameters:
         - name: date
           in: query
@@ -1414,136 +1254,1086 @@ paths:
           schema:
             type: string
             format: date
-          example: "2026-03-18"
+          description: "Date au format `Y-m-d`"
       responses:
         '200':
-          description: Données MT940
+          description: Données du rapport MT940
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Mt940Response'
+                type: object
 
-  /dataservices/v1/webhooks/subscriptions:
-    get:
+  /DataServices/createSubscription:
+    post:
       tags: [DataServices]
-      summary: Lister les abonnements webhook
-      operationId: listDataWebhookSubscriptions
-      security:
-        - BearerAuth: []
+      operationId: DataServices_createSubscription
+      summary: "$viva->dataServices->createSubscription()"
+      description: |
+        Crée une souscription webhook pour les événements de fichiers de données.
+
+        ```php
+        $sub = $viva->dataServices->createSubscription(
+            url: 'https://example.com/webhooks/viva-files',
+            eventType: 'SaleTransactionsFileGenerated',
+        );
+
+        echo $sub['subscriptionId']; // UUID
+        ```
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  description: URL de réception des webhooks
+                eventType:
+                  type: string
+                  default: SaleTransactionsFileGenerated
+                  description: Type d'événement
       responses:
         '200':
-          description: Liste des abonnements
+          description: Souscription créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataServicesSubscription'
+
+  /DataServices/updateSubscription:
+    put:
+      tags: [DataServices]
+      operationId: DataServices_updateSubscription
+      summary: "$viva->dataServices->updateSubscription()"
+      description: |
+        Met à jour une souscription webhook existante.
+
+        ```php
+        $viva->dataServices->updateSubscription(
+            subscriptionId: 'sub-uuid',
+            url: 'https://example.com/webhooks/new-url',
+        );
+        ```
+      parameters:
+        - name: subscriptionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: url
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uri
+        - name: eventType
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+          description: "Nouveau type d'événement (`null` = conserver l'actuel)"
+      responses:
+        '200':
+          description: Souscription mise à jour
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /DataServices/deleteSubscription:
+    delete:
+      tags: [DataServices]
+      operationId: DataServices_deleteSubscription
+      summary: "$viva->dataServices->deleteSubscription()"
+      description: |
+        Supprime une souscription webhook.
+
+        ```php
+        $viva->dataServices->deleteSubscription('sub-uuid');
+        ```
+      parameters:
+        - name: subscriptionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Souscription supprimée
+
+  /DataServices/listSubscriptions:
+    get:
+      tags: [DataServices]
+      operationId: DataServices_listSubscriptions
+      summary: "$viva->dataServices->listSubscriptions()"
+      description: |
+        Liste toutes les souscriptions webhook actives.
+
+        ```php
+        $subs = $viva->dataServices->listSubscriptions();
+
+        foreach ($subs as $sub) {
+            echo $sub['subscriptionId'] . ' → ' . $sub['url'] . "\n";
+        }
+        ```
+      responses:
+        '200':
+          description: Liste des souscriptions
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/WebhookSubscriptionResponse'
+                  $ref: '#/components/schemas/DataServicesSubscription'
 
+  /DataServices/requestFile:
     post:
       tags: [DataServices]
-      summary: Créer un abonnement webhook
-      operationId: createDataWebhookSubscription
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WebhookSubscriptionRequest'
-      responses:
-        '201':
-          description: Abonnement créé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WebhookSubscriptionResponse'
-
-  /dataservices/v1/webhooks/subscriptions/{subscriptionId}:
-    put:
-      tags: [DataServices]
-      summary: Mettre à jour un abonnement webhook
-      operationId: updateDataWebhookSubscription
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: subscriptionId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WebhookSubscriptionRequest'
-      responses:
-        '200':
-          description: Abonnement mis à jour
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WebhookSubscriptionResponse'
-
-    delete:
-      tags: [DataServices]
-      summary: Supprimer un abonnement webhook
-      operationId: deleteDataWebhookSubscription
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: subscriptionId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '204':
-          description: Abonnement supprimé
-
-  /dataservices/v1/file-request:
-    post:
-      tags: [DataServices]
-      summary: Demander la génération d'un fichier
+      operationId: DataServices_requestFile
+      summary: "$viva->dataServices->requestFile()"
       description: |
-        Déclenche la génération asynchrone d'un fichier de transactions.
-        Utilisez un abonnement webhook pour être notifié quand le fichier est prêt.
-      operationId: requestDataFile
-      security:
-        - BearerAuth: []
+        Demande la génération asynchrone d'un fichier de transactions pour une date.
+
+        Utilisez une souscription webhook pour être notifié quand le fichier est prêt.
+
+        ```php
+        $viva->dataServices->requestFile('2026-03-18');
+        ```
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: "Date au format `Y-m-d`"
+      responses:
+        '200':
+          description: Demande de fichier enregistrée
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # ============================================================
+  # Webhooks
+  # ============================================================
+  /Webhooks/verificationResponse:
+    get:
+      tags: [Webhooks]
+      operationId: Webhooks_verificationResponse
+      summary: "$viva->webhooks->verificationResponse()"
+      description: |
+        Génère la réponse de vérification pour le GET de confirmation envoyé par Viva.
+
+        Quand vous configurez un webhook dans le Dashboard Viva, Viva envoie un GET pour vérifier que l'URL est accessible. Vous devez répondre avec votre clé de vérification.
+
+        ```php
+        // Dans votre contrôleur (Laravel) :
+        public function handleVivaWebhookVerification(Request $request)
+        {
+            $response = $viva->webhooks->verificationResponse('votre-verification-key');
+
+            return response()->json($response);
+            // => {"StatusCode": 0, "Key": "votre-verification-key"}
+        }
+        ```
+      parameters:
+        - name: verificationKey
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Clé de vérification (Dashboard Viva > Webhooks)
+      responses:
+        '200':
+          description: Réponse de vérification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookVerificationResponse'
+
+  /Webhooks/parse:
+    post:
+      tags: [Webhooks]
+      operationId: Webhooks_parse
+      summary: "$viva->webhooks->parse()"
+      description: |
+        Parse le payload JSON d'un webhook POST envoyé par Viva.
+
+        ```php
+        // Dans votre contrôleur (Laravel) :
+        public function handleVivaWebhook(Request $request)
+        {
+            $event = $viva->webhooks->parse($request->getContent());
+
+            echo $event['event_type'];     // 'transaction.payment.created'
+            echo $event['event_type_id'];  // 1796
+            echo $event['event_data'];     // Données de l'événement
+
+            match ($event['event_type']) {
+                'transaction.payment.created' => $this->handlePayment($event['event_data']),
+                'transaction.refund.created'  => $this->handleRefund($event['event_data']),
+                default => null,
+            };
+        }
+        ```
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FileRequestBody'
+              type: object
+              required: [rawBody]
+              properties:
+                rawBody:
+                  type: string
+                  description: Corps JSON brut du POST webhook
       responses:
         '200':
-          description: Demande acceptée
+          description: Événement parsé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookParsedEvent'
+        '400':
+          description: "`InvalidArgumentException` — JSON invalide"
 
-  # ==================== Account ====================
-  /api/accounts/{merchantId}:
+  /Webhooks/isKnownEvent:
+    get:
+      tags: [Webhooks]
+      operationId: Webhooks_isKnownEvent
+      summary: "$viva->webhooks->isKnownEvent()"
+      description: |
+        Vérifie si un ID de type d'événement est reconnu par le SDK.
+
+        ```php
+        $viva->webhooks->isKnownEvent(1796); // true (transaction.payment.created)
+        $viva->webhooks->isKnownEvent(9999); // false
+        ```
+      parameters:
+        - name: eventTypeId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: "`bool`"
+          content:
+            application/json:
+              schema:
+                type: boolean
+
+  /Webhooks/eventTypeIds:
+    get:
+      tags: [Webhooks]
+      operationId: Webhooks_eventTypeIds
+      summary: "$viva->webhooks->eventTypeIds()"
+      description: |
+        Retourne tous les IDs de types d'événements connus.
+
+        ```php
+        $ids = $viva->webhooks->eventTypeIds();
+        // [1796, 1797, 1798, 1799, 1800, ..., 1828]
+        ```
+      responses:
+        '200':
+          description: Liste des IDs d'événements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: integer
+
+  # ============================================================
+  # Account
+  # ============================================================
+  /Account/info:
     get:
       tags: [Account]
-      summary: Informations du compte marchand
-      operationId: getAccountInfo
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: merchantId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      operationId: Account_info
+      summary: "$viva->account->info()"
+      description: |
+        Récupère les informations du compte marchand.
+
+        ```php
+        $info = $viva->account->info();
+
+        echo $info['merchantId'];
+        echo $info['businessName'];
+        echo $info['email'];
+        ```
       responses:
         '200':
           description: Informations du compte
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountInfoResponse'
+                type: object
+                description: "array<string, mixed> — merchantId, businessName, email, etc."
+
+  /Account/wallets:
+    get:
+      tags: [Account]
+      operationId: Account_wallets
+      summary: "$viva->account->wallets()"
+      description: |
+        Récupère les portefeuilles/soldes du marchand (via Account API).
+
+        ```php
+        $wallets = $viva->account->wallets();
+        ```
+      responses:
+        '200':
+          description: Portefeuilles du compte
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # ============================================================
+  # Enums
+  # ============================================================
+  /Enums/Environment:
+    get:
+      tags: [Enums]
+      operationId: Enum_Environment
+      summary: "Environment::DEMO | Environment::PRODUCTION"
+      description: |
+        Enum PHP pour l'environnement Viva Wallet.
+
+        ```php
+        use QrCommunication\VivaMerchant\Enums\Environment;
+
+        $env = Environment::DEMO;
+        $env = Environment::PRODUCTION;
+        $env = Environment::from('demo'); // Depuis une string
+
+        echo $env->value;         // 'demo'
+        echo $env->apiUrl();      // 'https://demo-api.vivapayments.com'
+        echo $env->legacyUrl();   // 'https://demo.vivapayments.com'
+        echo $env->checkoutUrl(); // 'https://demo.vivapayments.com/web/checkout'
+        echo $env->accountsUrl(); // 'https://demo-accounts.vivapayments.com'
+        ```
+
+        | Valeur | apiUrl | legacyUrl |
+        |--------|--------|-----------|
+        | `demo` | `demo-api.vivapayments.com` | `demo.vivapayments.com` |
+        | `production` | `api.vivapayments.com` | `www.vivapayments.com` |
+      responses:
+        '200':
+          description: Enum Environment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentEnum'
+
+  /Enums/Currency:
+    get:
+      tags: [Enums]
+      operationId: Enum_Currency
+      summary: "Currency::EUR | Currency::GBP | ..."
+      description: |
+        Enum PHP pour les devises (codes ISO 4217 numériques).
+
+        ```php
+        use QrCommunication\VivaMerchant\Enums\Currency;
+
+        $eur = Currency::EUR;
+        echo $eur->value;     // 978
+        echo $eur->iso();     // 'EUR'
+
+        $gbp = Currency::fromIso('GBP');
+        echo $gbp->value;     // 826
+        ```
+
+        | Devise | Code numérique | Enum |
+        |--------|---------------|------|
+        | EUR | 978 | `Currency::EUR` |
+        | GBP | 826 | `Currency::GBP` |
+        | USD | 840 | `Currency::USD` |
+        | PLN | 985 | `Currency::PLN` |
+        | RON | 946 | `Currency::RON` |
+        | BGN | 975 | `Currency::BGN` |
+        | CZK | 203 | `Currency::CZK` |
+        | HRK | 191 | `Currency::HRK` |
+        | HUF | 348 | `Currency::HUF` |
+        | DKK | 208 | `Currency::DKK` |
+        | SEK | 752 | `Currency::SEK` |
+        | NOK | 578 | `Currency::NOK` |
+      responses:
+        '200':
+          description: Enum Currency
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyEnum'
+
+  /Enums/TransactionStatus:
+    get:
+      tags: [Enums]
+      operationId: Enum_TransactionStatus
+      summary: "TransactionStatus::FINALIZED | ::PENDING | ..."
+      description: |
+        Enum PHP pour les statuts de transaction Viva Wallet.
+
+        ```php
+        use QrCommunication\VivaMerchant\Enums\TransactionStatus;
+
+        $status = TransactionStatus::from('F');
+        echo $status->label();        // 'Finalized'
+        echo $status->isSuccessful();  // true
+        echo $status->isPending();     // false
+        echo $status->isFailed();      // false
+        ```
+
+        | Valeur | Constante | Label | Catégorie |
+        |--------|-----------|-------|-----------|
+        | `F` | `FINALIZED` | Finalized | Succès |
+        | `A` | `PENDING` | Pending | En cours |
+        | `C` | `CLEARING` | Clearing | En cours |
+        | `E` | `ERROR` | Error | Échec |
+        | `M` | `MANUALLY_REVERSED` | Reversed | Échec |
+        | `X` | `REQUIRES_ACTION` | Requires Action | — |
+        | `R` | `REFUNDED` | Refunded | — |
+
+        **Méthodes utilitaires :**
+        - `isSuccessful()` → `true` si `FINALIZED`
+        - `isPending()` → `true` si `PENDING` ou `CLEARING`
+        - `isFailed()` → `true` si `ERROR` ou `MANUALLY_REVERSED`
+        - `label()` → label lisible en anglais
+      responses:
+        '200':
+          description: Enum TransactionStatus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionStatusEnum'
+
+  # ============================================================
+  # Exceptions
+  # ============================================================
+  /Exceptions/VivaException:
+    get:
+      tags: [Exceptions]
+      operationId: Exception_VivaException
+      summary: "VivaException — classe de base"
+      description: |
+        Classe de base pour toutes les exceptions du SDK. Étend `RuntimeException`.
+
+        ```php
+        use QrCommunication\VivaMerchant\Exceptions\VivaException;
+
+        try {
+            $viva->orders->create(amount: 0);
+        } catch (VivaException $e) {
+            echo $e->getMessage();     // Message d'erreur
+            echo $e->httpStatus;       // Code HTTP (400, 401, 404, etc.)
+            echo $e->responseBody;     // Réponse JSON brute (array|null)
+            echo $e->getErrorCode();   // ErrorCode Viva (int|null)
+            echo $e->getErrorText();   // ErrorText Viva (string|null)
+        }
+        ```
+
+        **Propriétés :**
+        - `httpStatus` (`int`) — Code HTTP de la réponse
+        - `responseBody` (`?array`) — Corps JSON décodé de la réponse Viva
+
+        **Méthodes :**
+        - `getErrorCode(): ?int` — Code d'erreur Viva
+        - `getErrorText(): ?string` — Message d'erreur Viva
+      responses:
+        '200':
+          description: Classe VivaException
+
+  /Exceptions/AuthenticationException:
+    get:
+      tags: [Exceptions]
+      operationId: Exception_AuthenticationException
+      summary: "AuthenticationException — échec OAuth2"
+      description: |
+        Levée quand l'authentification OAuth2 échoue (identifiants invalides, token expiré non renouvelable).
+
+        ```php
+        use QrCommunication\VivaMerchant\Exceptions\AuthenticationException;
+
+        try {
+            $viva->account->info();
+        } catch (AuthenticationException $e) {
+            echo $e->getMessage(); // 'OAuth2 authentication failed: ...'
+            // httpStatus = 401
+        }
+        ```
+      responses:
+        '200':
+          description: Classe AuthenticationException
+
+  /Exceptions/ValidationException:
+    get:
+      tags: [Exceptions]
+      operationId: Exception_ValidationException
+      summary: "ValidationException — erreur de validation"
+      description: |
+        Levée quand l'API retourne une erreur de validation (422).
+
+        ```php
+        use QrCommunication\VivaMerchant\Exceptions\ValidationException;
+
+        try {
+            // ...
+        } catch (ValidationException $e) {
+            echo $e->errors;
+            // ['amount' => ['Amount must be positive'], ...]
+        }
+        ```
+
+        **Propriétés :**
+        - `errors` (`array<string, string[]>`) — Erreurs par champ
+      responses:
+        '200':
+          description: Classe ValidationException
+
+components:
+  schemas:
+    # VivaClient
+    VivaClientConstructorParams:
+      type: object
+      required: [merchantId, apiKey, clientId, clientSecret]
+      properties:
+        merchantId:
+          type: string
+          format: uuid
+          description: "Merchant UUID — Dashboard Viva > Settings > API Access"
+        apiKey:
+          type: string
+          description: "API Key — Dashboard Viva > Settings > API Access"
+        clientId:
+          type: string
+          description: "OAuth Client ID — format `xxx.apps.vivapayments.com`"
+        clientSecret:
+          type: string
+          description: OAuth Client Secret
+        environment:
+          type: string
+          enum: [demo, production]
+          default: demo
+          description: "Environnement (`'demo'` ou `'production'`, ou `Environment` enum)"
+
+    VivaClientInstance:
+      type: object
+      description: |
+        Instance `VivaClient` avec les propriétés `readonly` suivantes :
+      properties:
+        orders:
+          type: string
+          description: "`Orders` — `$viva->orders`"
+        transactions:
+          type: string
+          description: "`Transactions` — `$viva->transactions`"
+        sources:
+          type: string
+          description: "`Sources` — `$viva->sources`"
+        wallets:
+          type: string
+          description: "`Wallets` — `$viva->wallets`"
+        bankAccounts:
+          type: string
+          description: "`BankAccounts` — `$viva->bankAccounts`"
+        webhooks:
+          type: string
+          description: "`Webhooks` — `$viva->webhooks`"
+        account:
+          type: string
+          description: "`Account` — `$viva->account`"
+        nativeCheckout:
+          type: string
+          description: "`NativeCheckout` — `$viva->nativeCheckout`"
+        dataServices:
+          type: string
+          description: "`DataServices` — `$viva->dataServices`"
+
+    Config:
+      type: object
+      properties:
+        merchantId:
+          type: string
+        apiKey:
+          type: string
+        clientId:
+          type: string
+        clientSecret:
+          type: string
+        environment:
+          $ref: '#/components/schemas/EnvironmentEnum'
+      description: |
+        Objet de configuration interne.
+
+        **Méthodes :**
+        - `apiUrl(): string`
+        - `legacyUrl(): string`
+        - `checkoutUrl(): string`
+        - `accountsUrl(): string`
+        - `isProduction(): bool`
+
+    # Orders
+    OrdersCreateParams:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: integer
+          description: "Montant en centimes (`1500` = 15,00 EUR)"
+          example: 1500
+        customerDescription:
+          type: string
+          nullable: true
+          description: Description affichée au client dans le checkout
+          example: Consultation naturopathie
+        merchantReference:
+          type: string
+          nullable: true
+          description: Référence interne (apparaît dans les exports)
+          example: session_123
+        sourceCode:
+          type: string
+          nullable: true
+          description: "Code source de paiement (`null` = source par défaut)"
+        allowRecurring:
+          type: boolean
+          default: false
+          description: Autoriser la tokenisation de la carte pour les charges récurrentes
+        preauth:
+          type: boolean
+          default: false
+          description: "Pré-autorisation uniquement (capturer plus tard avec `transactions->capture()`)"
+        maxInstallments:
+          type: integer
+          default: 0
+          description: "Nombre max de versements (`0` = désactivé)"
+
+    OrdersCreateResult:
+      type: object
+      properties:
+        order_code:
+          type: integer
+          description: Code unique de l'ordre Viva
+          example: 1234567890
+        checkout_url:
+          type: string
+          format: uri
+          description: URL Smart Checkout pour rediriger le client
+          example: "https://demo.vivapayments.com/web/checkout?ref=1234567890"
+
+    # Sources
+    SourcesCreateParams:
+      type: object
+      required: [name, sourceCode]
+      properties:
+        name:
+          type: string
+          description: Nom d'affichage de la source
+          example: Mon site web
+        sourceCode:
+          type: string
+          description: Code source à 4 chiffres
+          example: "1234"
+        domain:
+          type: string
+          nullable: true
+          description: Domaine du site web
+          example: www.example.com
+        pathSuccess:
+          type: string
+          nullable: true
+          description: Chemin de redirection après paiement réussi
+          example: /paiement/succes
+        pathFail:
+          type: string
+          nullable: true
+          description: Chemin de redirection après paiement échoué
+          example: /paiement/echec
+
+    # Wallets
+    WalletBalance:
+      type: object
+      properties:
+        available:
+          type: number
+          format: float
+          description: Solde disponible
+          example: 150.50
+        pending:
+          type: number
+          format: float
+          description: Solde en attente
+          example: 25.00
+        reserved:
+          type: number
+          format: float
+          description: Solde réservé
+          example: 0.00
+        currency:
+          type: string
+          description: Code devise ISO 4217
+          example: EUR
+
+    WalletTransferParams:
+      type: object
+      required: [amount, sourceWalletId, targetWalletId]
+      properties:
+        amount:
+          type: integer
+          description: Montant en centimes
+          example: 5000
+        sourceWalletId:
+          type: string
+          format: uuid
+          description: UUID du portefeuille source
+        targetWalletId:
+          type: string
+          format: uuid
+          description: UUID du portefeuille cible
+        description:
+          type: string
+          nullable: true
+          description: Description du transfert
+          example: Transfert mensuel
+
+    WalletDetailed:
+      type: object
+      properties:
+        iban:
+          type: string
+          description: IBAN du portefeuille
+        walletId:
+          type: integer
+          description: ID numérique du portefeuille
+        amount:
+          type: number
+          format: float
+          description: Solde actuel
+        isPrimary:
+          type: boolean
+          description: Portefeuille principal ?
+        currencyCode:
+          type: string
+          description: Code devise ISO 4217
+        friendlyName:
+          type: string
+          nullable: true
+          description: Nom d'affichage
+
+    # BankAccounts
+    BankAccountLinkParams:
+      type: object
+      required: [iban, beneficiaryName]
+      properties:
+        iban:
+          type: string
+          description: IBAN du compte bancaire
+          example: FR7630006000011234567890189
+        beneficiaryName:
+          type: string
+          description: Nom du titulaire du compte
+          example: Jean Dupont
+        friendlyName:
+          type: string
+          nullable: true
+          description: Nom d'affichage optionnel
+          example: Compte principal
+
+    BankAccountLinkResult:
+      type: object
+      properties:
+        bankAccountId:
+          type: string
+          format: uuid
+          description: UUID du compte bancaire lié
+        isVivaIban:
+          type: boolean
+          description: "L'IBAN appartient-il à un compte Viva interne ?"
+
+    BankAccountFeeCommandParams:
+      type: object
+      required: [bankAccountId, amount, walletId]
+      properties:
+        bankAccountId:
+          type: string
+          format: uuid
+          description: UUID du compte bancaire lié
+        amount:
+          type: integer
+          description: Montant en centimes
+          example: 10000
+        walletId:
+          type: string
+          description: UUID du portefeuille source
+        isInstant:
+          type: boolean
+          default: false
+          description: SEPA instantané ?
+        instructionType:
+          type: string
+          enum: [SHA, OUR]
+          default: SHA
+          description: "Type d'instruction de frais (SHA = partagés, OUR = à notre charge)"
+
+    BankAccountFeeCommandResult:
+      type: object
+      properties:
+        bankCommandId:
+          type: string
+          description: "ID de la commande de frais (à passer à `send()`)"
+        fee:
+          type: integer
+          description: Frais en centimes
+
+    BankAccountSendParams:
+      type: object
+      required: [bankAccountId, amount, walletId]
+      properties:
+        bankAccountId:
+          type: string
+          format: uuid
+          description: UUID du compte bancaire lié
+        amount:
+          type: integer
+          description: Montant en centimes
+          example: 10000
+        walletId:
+          type: string
+          description: UUID du portefeuille source
+        bankCommandId:
+          type: string
+          nullable: true
+          description: "ID de la commande de frais (optionnel, obtenu via `feeCommand()`)"
+        description:
+          type: string
+          nullable: true
+          description: Description du virement
+
+    BankAccountSendResult:
+      type: object
+      properties:
+        commandId:
+          type: string
+          description: UUID du virement
+        isInstant:
+          type: boolean
+          description: Virement instantané ?
+        fee:
+          type: integer
+          description: Frais en centimes
+
+    # NativeCheckout
+    NativeCheckoutChargeTokenParams:
+      type: object
+      required: [amount, paymentData]
+      properties:
+        amount:
+          type: integer
+          description: Montant en centimes
+          example: 1500
+        paymentData:
+          type: string
+          description: Données de paiement Apple Pay / Google Pay (string encodée)
+        paymentMethod:
+          type: string
+          enum: [applepay, googlepay]
+          default: applepay
+          description: "Méthode de paiement (`'applepay'` ou `'googlepay'`)"
+        sourceCode:
+          type: string
+          nullable: true
+          description: Code source de paiement
+        dynamicDescriptor:
+          type: string
+          nullable: true
+          description: Descripteur dynamique pour la charge
+
+    NativeCheckoutChargeTokenResult:
+      type: object
+      properties:
+        chargeToken:
+          type: string
+          description: "Token à usage unique pour `createTransaction()`"
+        redirectToACSForm:
+          type: string
+          nullable: true
+          description: Formulaire de redirection 3D Secure (si applicable)
+
+    NativeCheckoutTransactionParams:
+      type: object
+      required: [chargeToken, amount]
+      properties:
+        chargeToken:
+          type: string
+          description: "Token obtenu via `createChargeToken()`"
+        amount:
+          type: integer
+          description: Montant en centimes
+          example: 1500
+        currencyCode:
+          type: integer
+          default: 978
+          description: "Code devise ISO 4217 numérique (`978` = EUR)"
+        sourceCode:
+          type: string
+          nullable: true
+          description: Code source de paiement
+        merchantTrns:
+          type: string
+          nullable: true
+          description: Référence interne
+        customerTrns:
+          type: string
+          nullable: true
+          description: Description affichée au client
+        preauth:
+          type: boolean
+          default: false
+          description: Pré-autorisation uniquement ?
+        tipAmount:
+          type: integer
+          default: 0
+          description: Pourboire en centimes
+        installments:
+          type: integer
+          nullable: true
+          description: "Nombre de versements (`null` = désactivé)"
+
+    NativeCheckoutTransactionResult:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+          description: UUID de la transaction
+        statusId:
+          type: string
+          description: "Statut (`'F'` = finalisée)"
+        amount:
+          type: integer
+          description: Montant en centimes
+        orderCode:
+          type: integer
+          description: Code de l'ordre
+
+    # DataServices
+    DataServicesSubscription:
+      type: object
+      properties:
+        subscriptionId:
+          type: string
+          format: uuid
+          description: UUID de la souscription
+        url:
+          type: string
+          format: uri
+          description: URL du webhook
+        eventType:
+          type: string
+          description: Type d'événement
+
+    # Webhooks
+    WebhookVerificationResponse:
+      type: object
+      properties:
+        StatusCode:
+          type: integer
+          example: 0
+        Key:
+          type: string
+          description: Clé de vérification
+          example: votre-verification-key
+
+    WebhookParsedEvent:
+      type: object
+      properties:
+        event_type:
+          type: string
+          description: "Type d'événement lisible (ex: `transaction.payment.created`)"
+          example: transaction.payment.created
+        event_type_id:
+          type: integer
+          description: ID numérique du type d'événement Viva
+          example: 1796
+        event_data:
+          type: object
+          description: Données de l'événement (structure variable selon le type)
+
+    WebhookEventTypes:
+      type: object
+      description: |
+        Les 21 types d'événements webhook supportés :
+
+        | ID | Type |
+        |----|------|
+        | 1796 | `transaction.payment.created` |
+        | 1797 | `transaction.refund.created` |
+        | 1798 | `transaction.payment.cancelled` |
+        | 1799 | `transaction.reversal.created` |
+        | 1800 | `transaction.preauth.created` |
+        | 1801 | `transaction.preauth.completed` |
+        | 1802 | `transaction.preauth.cancelled` |
+        | 1810 | `pos.session.created` |
+        | 1811 | `pos.session.failed` |
+        | 1812 | `transaction.price.calculated` |
+        | 1813 | `transaction.failed` |
+        | 1819 | `account.connected` |
+        | 1820 | `account.verification.status.changed` |
+        | 1821 | `account.transaction.created` |
+        | 1822 | `command.bank.transfer.created` |
+        | 1823 | `command.bank.transfer.executed` |
+        | 1824 | `transfer.created` |
+        | 1825 | `obligation.created` |
+        | 1826 | `obligation.captured` |
+        | 1827 | `order.updated` |
+        | 1828 | `sale.transactions.file` |
+
+    # Enums
+    EnvironmentEnum:
+      type: string
+      enum: [demo, production]
+      description: |
+        `QrCommunication\VivaMerchant\Enums\Environment`
+
+        Backed enum PHP 8.1+ avec valeurs string.
+
+    CurrencyEnum:
+      type: integer
+      description: |
+        `QrCommunication\VivaMerchant\Enums\Currency`
+
+        Backed enum PHP 8.1+ avec valeurs int (codes ISO 4217 numériques).
+
+    TransactionStatusEnum:
+      type: string
+      enum: ['F', 'A', 'C', 'E', 'M', 'X', 'R']
+      description: |
+        `QrCommunication\VivaMerchant\Enums\TransactionStatus`
+
+        Backed enum PHP 8.1+ avec valeurs string.
+
+    # Errors
+    ApiError:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Message d'erreur
+        httpStatus:
+          type: integer
+          description: Code HTTP
+        responseBody:
+          type: object
+          nullable: true
+          description: Réponse brute Viva
