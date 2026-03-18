@@ -62,7 +62,7 @@ final class Wallets
     }
 
     /**
-     * Transfer money between Viva wallets.
+     * Transfer money between Viva wallets (Legacy API).
      *
      * Prerequisite: "Allow transfers between accounts" must be enabled
      * on the source wallet in Settings > API Access.
@@ -81,5 +81,65 @@ final class Wallets
             'TargetWalletId' => $targetWalletId,
             'Description' => $description,
         ]));
+    }
+
+    // ==================== Account API (New) ====================
+
+    /**
+     * List wallets via the Account API (richer response with IBAN, swift, etc.).
+     *
+     * @return array<int, array{iban: string, walletId: int, amount: float, isPrimary: bool, currencyCode: string, friendlyName: ?string}>
+     */
+    public function listDetailed(): array
+    {
+        return $this->http->get('/walletaccounts/v1/wallets');
+    }
+
+    /**
+     * Create a new wallet (sub-account).
+     *
+     * @param  string  $friendlyName  Display name for the wallet
+     * @param  string  $currencyCode  ISO 4217 alpha code (e.g. 'EUR')
+     * @return array<string, mixed>
+     */
+    public function create(string $friendlyName, string $currencyCode = 'EUR'): array
+    {
+        return $this->http->post('/walletaccounts/v1/wallets', [
+            'friendlyName' => $friendlyName,
+            'currencyCode' => $currencyCode,
+        ]);
+    }
+
+    /**
+     * Update a wallet's friendly name.
+     *
+     * @return array<string, mixed>
+     */
+    public function update(int $walletId, string $friendlyName): array
+    {
+        return $this->http->post("/walletaccounts/v1/wallets/{$walletId}", [
+            'friendlyName' => $friendlyName,
+        ]);
+    }
+
+    /**
+     * Search account transactions (across all wallets).
+     *
+     * @param  array{date_from?: string, date_to?: string, walletId?: int}  $filters
+     * @return array<int, array<string, mixed>>
+     */
+    public function searchTransactions(array $filters = []): array
+    {
+        return $this->http->get('/walletaccounts/v1/transactions', array_filter($filters));
+    }
+
+    /**
+     * Get account transaction details.
+     *
+     * @return array<string, mixed>
+     */
+    public function getTransaction(string $transactionId): array
+    {
+        return $this->http->get("/walletaccounts/v1/transactions/{$transactionId}");
     }
 }

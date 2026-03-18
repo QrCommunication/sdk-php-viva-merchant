@@ -6,6 +6,7 @@ namespace QrCommunication\VivaMerchant;
 
 use QrCommunication\VivaMerchant\Enums\Environment;
 use QrCommunication\VivaMerchant\Resources\Account;
+use QrCommunication\VivaMerchant\Resources\BankAccounts;
 use QrCommunication\VivaMerchant\Resources\Orders;
 use QrCommunication\VivaMerchant\Resources\Sources;
 use QrCommunication\VivaMerchant\Resources\Transactions;
@@ -53,6 +54,8 @@ final class VivaClient
 
     public readonly Wallets $wallets;
 
+    public readonly BankAccounts $bankAccounts;
+
     public readonly Account $account;
 
     private readonly Config $config;
@@ -80,6 +83,7 @@ final class VivaClient
         $this->transactions = new Transactions($this->http, $this->config);
         $this->sources = new Sources($this->http);
         $this->wallets = new Wallets($this->http, $this->config);
+        $this->bankAccounts = new BankAccounts($this->http);
         $this->webhooks = new Webhooks;
         $this->account = new Account($this->http, $this->config);
     }
