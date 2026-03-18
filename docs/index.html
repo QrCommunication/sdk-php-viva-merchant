@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Viva Wallet Merchant SDK for PHP — API Documentation</title>
+    <meta name="description" content="API documentation for the Viva Wallet Merchant PHP SDK by QrCommunication. Orders, Transactions, Sources, Webhooks, Account." />
+
+    <!-- ReDoc -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+    <style>
+        body { margin: 0; padding: 0; }
+    </style>
+</head>
+<body>
+    <div id="redoc-container"></div>
+
+    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+    <script>
+        Redoc.init(
+            './openapi.yaml',
+            {
+                theme: {
+                    colors: {
+                        primary: { main: '#0d9488' },
+                    },
+                    typography: {
+                        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                        code: {
+                            fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                            fontSize: '13px',
+                        },
+                        headings: { fontFamily: '"Inter", sans-serif' },
+                    },
+                    sidebar: {
+                        backgroundColor: '#f8fafc',
+                        textColor: '#334155',
+                        activeTextColor: '#0d9488',
+                    },
+                    rightPanel: {
+                        backgroundColor: '#1e293b',
+                    },
+                },
+                scrollYOffset: 0,
+                hideDownloadButton: false,
+                expandResponses: '200',
+                jsonSampleExpandLevel: 2,
+                sortTagsAlphabetically: false,
+                pathInMiddlePanel: true,
+            },
+            document.getElementById('redoc-container')
+        );
+    </script>
+</body>
+</html>
