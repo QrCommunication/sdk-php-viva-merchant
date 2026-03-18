@@ -24,35 +24,12 @@ info:
 
     You never need to manage tokens manually.
 
-    ## Installation
-
-    ```bash
-    composer require qrcommunication/viva-merchant-sdk
-    ```
-
-    ## Quick Start
-
-    ```php
-    use QrCommunication\VivaMerchant\VivaClient;
-
-    $viva = new VivaClient(
-        merchantId: 'your-merchant-uuid',
-        apiKey: 'your-api-key',
-        clientId: 'your-client-id.apps.vivapayments.com',
-        clientSecret: 'your-client-secret',
-        environment: 'demo',
-    );
-
-    $order = $viva->orders->create(amount: 1500);
-    echo $order['checkout_url'];
-    ```
-
     ## SDK by [QrCommunication](https://qrcommunication.com)
   version: 1.0.0
   contact:
     name: QrCommunication
     url: https://qrcommunication.com
-    email: dev@praticonnect.com
+    email: contact@qrcommunication.com
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
