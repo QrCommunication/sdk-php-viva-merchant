@@ -812,12 +812,11 @@ Pour l'environnement `demo` :
 
 ## Documentation interactive
 
-La documentation interactive (ReDoc) est disponible dans `docs/index.html`. Elle détaille chaque classe, méthode, paramètre et type de retour du SDK.
+La documentation interactive (ReDoc) est disponible en ligne :
 
-```bash
-# Ouvrir la documentation
-open docs/index.html
-```
+**[https://qrcommunication.github.io/sdk-php-viva-merchant/](https://qrcommunication.github.io/sdk-php-viva-merchant/)**
+
+Elle détaille chaque classe, méthode, paramètre et type de retour du SDK.
 
 ---
 
