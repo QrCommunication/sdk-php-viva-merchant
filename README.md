@@ -402,6 +402,27 @@ La documentation complete de l'API est disponible au format OpenAPI 3.1 :
 
 ---
 
+## Intégration AI (Claude, Cursor, Copilot, Codex)
+
+Ce SDK inclut des fichiers d'instructions automatiquement détectés par les assistants AI :
+
+| Outil | Fichier | Détection |
+|-------|---------|-----------|
+| **Claude Code** | [`CLAUDE.md`](CLAUDE.md) | Automatique |
+| **Cursor** | [`.cursorrules`](.cursorrules) | Automatique |
+| **GitHub Copilot** | [`.github/copilot-instructions.md`](.github/copilot-instructions.md) | Automatique |
+| **OpenAI Codex** | [`AGENTS.md`](AGENTS.md) | Automatique |
+| **Gemini** | [`CLAUDE.md`](CLAUDE.md) | Manuel (copier dans le contexte) |
+
+Ces fichiers fournissent à l'assistant AI :
+- L'architecture du SDK et le pattern Resource
+- Le routing entre Legacy API (Basic Auth) et New API (Bearer)
+- Les conventions (PascalCase vs camelCase, montants en centimes)
+- Les pièges Viva Wallet à éviter
+- Des exemples de code complets
+
+---
+
 ## Licence
 
 MIT - voir le fichier [LICENSE](LICENSE) pour les details.
