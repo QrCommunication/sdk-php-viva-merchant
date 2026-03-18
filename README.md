@@ -822,12 +822,14 @@ Elle détaille chaque classe, méthode, paramètre et type de retour du SDK.
 
 ## Intégration IA
 
-Ce SDK est conçu pour être utilisable par des agents IA (Claude, GPT, etc.) :
+Ce SDK inclut un **skill détaillé** (`skill/SKILL.md`) automatiquement détecté par les assistants IA. Il fournit la référence complète des 9 resources, 34+ méthodes, enums, exceptions et patterns d'implémentation.
 
-- Noms de méthodes explicites et prédictibles
-- Paramètres nommés PHP 8.0+
-- Types de retour documentés avec PHPDoc
-- Exceptions typées pour la gestion d'erreurs
+| Outil | Fichier | Détection |
+|-------|---------|-----------|
+| **Claude Code** | `CLAUDE.md` + `skill/SKILL.md` | Automatique |
+| **Cursor** | `.cursorrules` | Automatique |
+| **GitHub Copilot** | `.github/copilot-instructions.md` | Automatique |
+| **OpenAI Codex** | `AGENTS.md` | Automatique |
 
 ```php
 // Un agent IA peut construire cet appel à partir de :
