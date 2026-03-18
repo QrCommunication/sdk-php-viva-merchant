@@ -397,20 +397,8 @@ $viva->transactions->cancel($txns[0]['TransactionId']);
 
 La documentation complete de l'API est disponible au format OpenAPI 3.1 :
 
+- **Documentation interactive (ReDoc)** : [qrcommunication.github.io/sdk-php-viva-merchant](https://qrcommunication.github.io/sdk-php-viva-merchant/)
 - **Specification OpenAPI** : [`docs/openapi.yaml`](docs/openapi.yaml)
-- **Documentation interactive (ReDoc)** : [`docs/index.html`](docs/index.html)
-
-Pour consulter la documentation interactive localement :
-
-```bash
-# Option 1 : ouvrir directement dans le navigateur
-open docs/index.html        # macOS
-xdg-open docs/index.html   # Linux
-
-# Option 2 : serveur local
-cd docs && python3 -m http.server 8080
-# Puis ouvrir http://localhost:8080
-```
 
 ---
 
