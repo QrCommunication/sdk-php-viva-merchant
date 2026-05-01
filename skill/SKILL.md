@@ -37,7 +37,7 @@ $order = $viva->orders->create(amount: 1500, customerDescription: 'Consultation'
 echo $order['checkout_url']; // Rediriger le client ici
 ```
 
-## Architecture — 9 Resources, 34+ méthodes
+## Architecture — 10 Resources, 1 Helper, 37+ méthodes
 
 ```
 VivaClient (point d'entrée, lazy auth)
@@ -97,9 +97,20 @@ VivaClient (point d'entrée, lazy auth)
 │   ├── eventTypeIds() → int[]
 │   └── EVENTS (const) → array<int, string> (21 événements)
 │
-└── account         → Account         (New API, Bearer)
-    ├── info() → array (merchantId, businessName, email, country)
-    └── wallets() → array
+├── account         → Account         (New API, Bearer)
+│   ├── info() → array (merchantId, businessName, email, country)
+│   └── wallets() → array
+│
+├── messages()      → Messages        (Legacy API, Basic Auth — /api/messages/config)
+│   ├── register(eventTypeId, callbackUrl) → ['Id' => string, 'Active' => bool]
+│   ├── list() → array[] (toutes les souscriptions)
+│   └── delete(messageId) → array
+│
+└── webhookRegistrar() → WebhookRegistrar (helper, pas une Resource)
+    └── registerAll(callbackUrl, events?) → array<string, string>
+        // events = null → tous les BANKING_EVENTS (768, 769, 2054)
+        // Retour : ['768' => 'registered'|'already_exists'|'error:{msg}', ...]
+        // OBLIGATOIRE pour les events banking — gère les duplicates automatiquement
 ```
 
 ## Les 2 APIs Viva Wallet
@@ -229,6 +240,15 @@ $token = $viva->nativeCheckout->createChargeToken(amount: 1500, paymentData: $ap
 $txn = $viva->nativeCheckout->createTransaction(chargeToken: $token['chargeToken'], amount: 1500);
 ```
 
+### Enregistrement webhook banking
+
+```php
+// TOUJOURS utiliser webhookRegistrar — jamais de boucle messages()->register() manuelle
+$results = $viva->webhookRegistrar()->registerAll('https://example.com/webhooks/viva');
+// => ['768' => 'registered', '769' => 'registered', '2054' => 'already_exists']
+// Idempotent : safe à relancer à chaque deploy/boot
+```
+
 ## Pièges à éviter
 
 | Piège | Conséquence | Le SDK gère |
@@ -239,6 +259,8 @@ $txn = $viva->nativeCheckout->createTransaction(chargeToken: $token['chargeToken
 | cancel() même jour vs lendemain | void vs refund | Non — comportement Viva normal |
 | Capture sans "Allow recurring" activé | Échec silencieux | Non — à activer dans Settings |
 | paymentMethodId 10 vs 11 | Apple vs Google Pay | Le SDK expose `paymentMethod: 'applepay'\|'googlepay'` |
+| messages()->register() en boucle sans duplicate guard | Exception 400 à chaque boot | Utiliser `webhookRegistrar()->registerAll()` |
+| mock de HttpClient (final) | ClassIsFinalException | Utiliser `HttpClientInterface` dans les tests |
 
 ## Carte de test (demo)
 

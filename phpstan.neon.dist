@@ -1,0 +1,10 @@
+parameters:
+    level: 6
+    paths:
+        - src
+        - tests
+    # PHPDoc-annotated return types like array<string, string> are treated as
+    # potentially having runtime keys that static analysis cannot enumerate.
+    # This is the correct setting for generic array return types where keys are
+    # computed at runtime (e.g. WebhookRegistrar::registerAll).
+    treatPhpDocTypesAsCertain: false

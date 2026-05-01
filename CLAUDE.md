@@ -18,9 +18,16 @@ VivaClient (point d'entree)
 |-- bankAccounts    -> BankAccounts    (New API, Bearer OAuth2)
 |-- nativeCheckout  -> NativeCheckout  (New API, Bearer OAuth2)
 |-- dataServices    -> DataServices    (New API, Bearer OAuth2)
-|-- webhooks        -> Webhooks        (pas d'auth)
+|-- webhooks        -> Webhooks        (pas d'auth - verification/parsing local)
 |-- account         -> Account         (New API, Bearer OAuth2)
+|-- messages()      -> Messages        (Legacy API, Basic Auth - /api/messages/config)
+|-- webhookRegistrar() -> WebhookRegistrar (helper idempotent banking events)
 ```
+
+### Contracts (interfaces pour le mocking)
+
+- `Contracts/HttpClientInterface` — implémentée par `HttpClient`
+- `Contracts/MessagesInterface` — implémentée par `Messages`
 
 ## Les 2 APIs Viva Wallet
 
@@ -33,7 +40,8 @@ VivaClient (point d'entree)
 
 ## Routing HTTP interne
 
-- `HttpClient::legacyGet/Post/DeleteUrl()` -> Legacy API avec Basic Auth
+- `HttpClient::legacyGet/legacyPost/legacyDeletePath()` -> Legacy API avec Basic Auth
+- `HttpClient::legacyDeleteUrl(fullUrl)` -> Legacy API DELETE avec URL complete
 - `HttpClient::get/post/put/delete()` -> New API avec Bearer token
 - L'auth OAuth2 est lazy + auto-refresh (60s avant expiration)
 
@@ -107,7 +115,7 @@ $sub = $viva->dataServices->createSubscription('https://example.com/hook');
 $viva->dataServices->requestFile('2026-03-18');
 ```
 
-### Webhooks
+### Webhooks — Verification et parsing (local, pas d'appel API)
 ```php
 // GET de verification
 return $viva->webhooks->verificationResponse('your-key');
@@ -117,6 +125,21 @@ $event = $viva->webhooks->parse($rawBody);
 // => ['event_type' => 'transaction.payment.created', 'event_type_id' => 1796, 'event_data' => [...]]
 
 // 21 types d'evenements supportes (voir Webhooks::EVENTS)
+```
+
+### Enregistrement des webhooks banking (TOUJOURS via webhookRegistrar)
+
+```php
+// OBLIGATOIRE : enregistrer les events 768/769/2054 par API pour les virements bancaires
+// TOUJOURS utiliser webhookRegistrar() — idempotent, ignore les erreurs 400 duplicate
+$results = $viva->webhookRegistrar()->registerAll(
+    callbackUrl: 'https://example.com/webhooks/viva',
+);
+// => ['768' => 'registered', '769' => 'registered', '2054' => 'already_exists']
+
+// Ne PAS utiliser messages()->register() en boucle sans gestion du duplicate
+// Ne PAS enregistrer ces events via le Dashboard Viva (non disponible pour marchands standard)
+// Convention cross-SDK : meme methode registerAll() + constante BANKING_EVENTS dans sdk-php-viva-isv
 ```
 
 ## Enums
@@ -144,6 +167,9 @@ Toutes exposent : `$e->httpStatus`, `$e->responseBody`, `$e->getErrorCode()`, `$
 4. **cancel() le meme jour** = void (annulation). **cancel() jour suivant** = refund (remboursement).
 5. **Capture preauth** necessite "Allow recurring payments and pre-auth captures via API" active dans Settings > API Access.
 6. **NativeCheckout** : `paymentMethodId` 10 = Apple Pay, 11 = Google Pay. Ne pas confondre.
+7. **Events 768/769/2054** : ne JAMAIS les enregistrer en HTTP brut sans gerer les duplicates. Utiliser `webhookRegistrar()->registerAll()`.
+8. **Messages Resource** : utilise Legacy API (Basic Auth), PAS Bearer. Appels via `http->legacyPost/legacyGet/legacyDeletePath`.
+9. **mock de HttpClient** : impossible de mocker `HttpClient` directement (final). Utiliser `HttpClientInterface`. Idem pour `Messages` -> `MessagesInterface`.
 
 ## Conventions de code
 

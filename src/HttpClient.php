@@ -7,6 +7,7 @@ namespace QrCommunication\VivaMerchant;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\RequestOptions;
+use QrCommunication\VivaMerchant\Contracts\HttpClientInterface;
 use QrCommunication\VivaMerchant\Exceptions\ApiException;
 use QrCommunication\VivaMerchant\Exceptions\AuthenticationException;
 
@@ -16,7 +17,7 @@ use QrCommunication\VivaMerchant\Exceptions\AuthenticationException;
  * Handles OAuth2 token acquisition, Basic Auth for Legacy API,
  * and Bearer Auth for New API. Never instantiate directly — use VivaClient.
  */
-final class HttpClient
+final class HttpClient implements HttpClientInterface
 {
     private ?string $accessToken = null;
 
@@ -131,6 +132,18 @@ final class HttpClient
     public function legacyDeleteUrl(string $fullUrl): array
     {
         return $this->requestBasic('DELETE', $fullUrl);
+    }
+
+    /**
+     * DELETE on the legacy API using a path (composes the full URL internally).
+     *
+     * Prefer this over legacyDeleteUrl() when you only have a path.
+     *
+     * @return array<string, mixed>
+     */
+    public function legacyDeletePath(string $path): array
+    {
+        return $this->requestBasic('DELETE', $this->config->legacyUrl().$path);
     }
 
     // ==================== AUTH ====================

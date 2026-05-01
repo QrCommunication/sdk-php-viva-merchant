@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace QrCommunication\VivaMerchant;
 
 use QrCommunication\VivaMerchant\Enums\Environment;
+use QrCommunication\VivaMerchant\Helpers\WebhookRegistrar;
 use QrCommunication\VivaMerchant\Resources\Account;
 use QrCommunication\VivaMerchant\Resources\BankAccounts;
 use QrCommunication\VivaMerchant\Resources\DataServices;
+use QrCommunication\VivaMerchant\Resources\Messages;
 use QrCommunication\VivaMerchant\Resources\NativeCheckout;
 use QrCommunication\VivaMerchant\Resources\Orders;
 use QrCommunication\VivaMerchant\Resources\Sources;
@@ -50,6 +52,13 @@ use QrCommunication\VivaMerchant\Resources\Webhooks;
  *
  *     // Rapport MT940
  *     $report = $viva->dataServices->mt940('2026-03-18');
+ *
+ *     // Enregistrer les webhooks banking (idempotent)
+ *     $viva->webhookRegistrar()->registerAll('https://example.com/webhooks/viva');
+ *
+ *     // Gérer les abonnements webhook manuellement
+ *     $viva->messages()->register(768, 'https://example.com/webhooks/viva');
+ *     $viva->messages()->list();
  */
 final class VivaClient
 {
@@ -74,6 +83,10 @@ final class VivaClient
     private readonly Config $config;
 
     private readonly HttpClient $http;
+
+    private ?Messages $messagesResource = null;
+
+    private ?WebhookRegistrar $webhookRegistrarHelper = null;
 
     public function __construct(
         string $merchantId,
@@ -101,6 +114,29 @@ final class VivaClient
         $this->account = new Account($this->http, $this->config);
         $this->nativeCheckout = new NativeCheckout($this->http);
         $this->dataServices = new DataServices($this->http);
+    }
+
+    /**
+     * Access webhook subscription management (/api/messages/config).
+     *
+     * Prefer webhookRegistrar() for idempotent banking event setup.
+     */
+    public function messages(): Messages
+    {
+        return $this->messagesResource ??= new Messages($this->http);
+    }
+
+    /**
+     * Idempotent helper to register banking webhook events.
+     *
+     * Events registered: 768 (Bank Transfer Created), 769 (Bank Transfer Executed),
+     * 2054 (Account Transaction Created).
+     *
+     * Usage: $viva->webhookRegistrar()->registerAll('https://example.com/webhooks/viva');
+     */
+    public function webhookRegistrar(): WebhookRegistrar
+    {
+        return $this->webhookRegistrarHelper ??= new WebhookRegistrar($this->messages());
     }
 
     /**

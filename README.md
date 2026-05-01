@@ -1,11 +1,11 @@
 # Viva Wallet Merchant SDK — PHP
 
-[![Version 1.3.5](https://img.shields.io/badge/version-1.3.5-blue.svg)](https://github.com/qrcommunication/sdk-php-viva-merchant/releases)
+[![Version 1.4.0](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/qrcommunication/sdk-php-viva-merchant/releases)
 [![PHP 8.2+](https://img.shields.io/badge/PHP-8.2%2B-777BB4.svg)](https://php.net)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Packagist](https://img.shields.io/badge/Packagist-qrcommunication%2Fviva--merchant--sdk-orange.svg)](https://packagist.org/packages/qrcommunication/viva-merchant-sdk)
 
-SDK PHP complet pour l'intégration Viva Wallet. Couvre **9 ressources** : Orders, Transactions, Sources, Wallets, BankAccounts, NativeCheckout, DataServices, Account et Webhooks.
+SDK PHP complet pour l'intégration Viva Wallet. Couvre **10 ressources** : Orders, Transactions, Sources, Wallets, BankAccounts, NativeCheckout, DataServices, Account, Webhooks et Messages (abonnements webhook).
 
 **PHP 8.2+** requis. Compatible Laravel, Symfony, ou tout projet PHP.
 
@@ -27,6 +27,8 @@ SDK PHP complet pour l'intégration Viva Wallet. Couvre **9 ressources** : Order
   - [7. DataServices](#7-dataservices--vivadataservices)
   - [8. Webhooks](#8-webhooks--vivawebhooks)
   - [9. Account](#9-account--vivaaccount)
+  - [10. Messages](#10-messages--vivamessages)
+- [Enregistrement des webhooks banking](#enregistrement-des-webhooks-banking)
 - [Architecture](#architecture)
 - [Enums](#enums)
 - [Gestion d'erreurs](#gestion-derreurs)
@@ -615,13 +617,81 @@ $wallets = $viva->account->wallets();
 
 ---
 
+### 10. Messages — `$viva->messages()`
+
+Gestion des abonnements webhook via `/api/messages/config` (Legacy API, Basic Auth).
+
+> Utilisez `$viva->webhookRegistrar()->registerAll(...)` pour l'enregistrement idempotent des events banking. `messages()` donne un accès bas niveau si besoin.
+
+#### `register()` — Créer un abonnement webhook
+
+```php
+$sub = $viva->messages()->register(
+    eventTypeId: 768,                                  // Bank Transfer Created
+    callbackUrl: 'https://example.com/webhooks/viva',
+);
+// => ['Id' => 'sub-uuid', 'Active' => true]
+```
+
+#### `list()` — Lister les abonnements
+
+```php
+$subscriptions = $viva->messages()->list();
+foreach ($subscriptions as $sub) {
+    echo $sub['Id'] . ' → EventTypeId: ' . $sub['EventTypeId'];
+}
+```
+
+#### `delete()` — Supprimer un abonnement
+
+```php
+$viva->messages()->delete('sub-uuid-here');
+```
+
+---
+
+## Enregistrement des webhooks banking
+
+Les events **768** (Bank Transfer Created), **769** (Bank Transfer Executed) et **2054** (Account Transaction Created) doivent être enregistrés par chaque merchant via `/api/messages/config` (pas via les webhooks ISV).
+
+Utilisez `WebhookRegistrar` pour un enregistrement **idempotent** : les erreurs "duplicate" sont silencieusement transformées en `already_exists`.
+
+```php
+// Enregistrer les 3 events banking en une ligne
+$results = $viva->webhookRegistrar()->registerAll(
+    callbackUrl: 'https://example.com/webhooks/viva',
+);
+// => ['768' => 'registered', '769' => 'registered', '2054' => 'already_exists']
+
+// Ou un sous-ensemble d'events
+$results = $viva->webhookRegistrar()->registerAll(
+    callbackUrl: 'https://example.com/webhooks/viva',
+    events: [768, 769],
+);
+```
+
+Statuts possibles dans le tableau retourné :
+
+| Statut | Signification |
+|--------|--------------|
+| `registered` | Abonnement créé avec succès |
+| `already_exists` | Déjà enregistré (Viva a retourné 400 duplicate) |
+| `error:{message}` | Échec inattendu (503, réseau, etc.) |
+
+> **Convention cross-SDK** : `WebhookRegistrar::BANKING_EVENTS` et `registerAll()` ont les mêmes noms dans `sdk-php-viva-isv`. La différence est l'absence de `$connectedMerchantId` — ce SDK parle au nom du merchant lui-même.
+
+---
+
 ## Architecture
 
 ```
 src/
-├── VivaClient.php          # Point d'entrée — instancie les 9 ressources
+├── VivaClient.php          # Point d'entrée — instancie les 10 ressources + 1 helper
 ├── Config.php              # Configuration (URLs par environnement)
 ├── HttpClient.php          # Client HTTP Guzzle (OAuth2 auto, Basic Auth)
+├── Contracts/
+│   ├── HttpClientInterface.php   # Interface pour HttpClient (mocking)
+│   └── MessagesInterface.php     # Interface pour Messages (mocking)
 ├── Enums/
 │   ├── Environment.php     # demo | production
 │   ├── Currency.php        # Codes ISO 4217 numériques
@@ -631,6 +701,8 @@ src/
 │   ├── ApiException.php           # Erreur API (4xx, 5xx)
 │   ├── AuthenticationException.php # Échec OAuth2 (401)
 │   └── ValidationException.php    # Validation (422)
+├── Helpers/
+│   └── WebhookRegistrar.php  # Enregistrement idempotent des events banking
 └── Resources/
     ├── Orders.php           # Smart Checkout
     ├── Transactions.php     # Get, list, cancel, capture, recurring
@@ -639,8 +711,9 @@ src/
     ├── BankAccounts.php     # IBAN, virements SEPA
     ├── NativeCheckout.php   # Apple Pay, Google Pay
     ├── DataServices.php     # MT940, souscriptions webhook
-    ├── Webhooks.php         # Vérification et parsing
-    └── Account.php          # Infos du compte
+    ├── Webhooks.php         # Vérification et parsing local
+    ├── Account.php          # Infos du compte
+    └── Messages.php         # Abonnements webhook (/api/messages/config)
 ```
 
 L'authentification est gérée automatiquement par `HttpClient` :
@@ -794,6 +867,22 @@ public function handle(Request $request)
     return response()->json(['status' => 'ok']);
 }
 ```
+
+### 4. Enregistrement des webhooks banking par API (optionnel)
+
+Les events **768**, **769** et **2054** (virements et transactions de compte) ne peuvent pas être configurés depuis le Dashboard Viva pour les marchands standard. Ils doivent être enregistrés **par API** via `/api/messages/config`.
+
+```php
+// Enregistrement idempotent au démarrage de l'application
+$results = $viva->webhookRegistrar()->registerAll(
+    callbackUrl: config('services.viva.webhook_url'),
+);
+
+// $results = ['768' => 'registered', '769' => 'registered', '2054' => 'already_exists']
+// Les 'already_exists' sont silencieux — safe à relancer à chaque boot.
+```
+
+> **Distinction ISV vs merchant** : dans le SDK ISV (`sdk-php-viva-isv`), ces events sont enregistrés au niveau de l'ISV pour un `connectedMerchantId`. Ici, ils s'appliquent directement au compte marchand authentifié.
 
 ---
 
