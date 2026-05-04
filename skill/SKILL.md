@@ -310,3 +310,86 @@ src/
     ├── AuthenticationException.php (401)
     └── ValidationException.php  (422, ->errors)
 ```
+
+---
+
+## ⚠️ Production gotchas (testé sur prod 2026-05)
+
+Ces comportements ont été observés sur un compte propre Viva production
+réel et complètent la doc Viva officielle.
+
+### Endpoints qui marchent sur compte propre (Basic Auth simple)
+
+```
+POST   /api/orders                   → 200 (Smart Checkout)
+GET    /api/orders/{orderCode}       → 200
+POST   /api/transactions/{id}        → 200 (capture)
+DELETE /api/transactions/{id}        → 200 (refund/void)
+GET    /api/transactions?date=Y-m-d  → 200 (liste journalière)
+GET    /api/wallets                  → 200 (IBAN + soldes)
+POST   /api/sources                  → 200 (création Source)
+GET    /api/sources                  → 200 (liste)
+POST   /api/messages/config          → 200 (webhooks merchant — sur compte propre)
+```
+
+⚠️ Sur les **comptes connectés ISV** (sub-merchants opérés via composite
+auth), `POST /api/messages/config` retourne **404** — ce SDK fonctionne
+avec Basic Auth simple sur le **compte propre uniquement**. Pour les
+sub-merchants ISV, voir `qrcommunication/viva-isv-sdk`.
+
+### Différence avec viva-isv-sdk
+
+| Use case | SDK |
+|----------|-----|
+| Compte propre (e-commerce, SaaS) | **`viva-merchant-sdk`** ✅ |
+| Compte propre d'un ISV (ce qui rentre la commission ISV) | **`viva-merchant-sdk`** ✅ |
+| Connected sub-merchants (split payments, isvAmount) | **`viva-isv-sdk`** |
+| Composite Basic Auth ResellerID:MerchantID | **`viva-isv-sdk`** |
+
+Les deux SDK peuvent cohabiter dans une même app ISV — un instance
+`VivaClient` (merchant) pour gérer le compte propre + un instance
+`VivaIsvClient` (isv) pour gérer les sub-merchants.
+
+### Sources Smart Checkout — success/failure URLs
+
+Sur compte propre, `Sources::create()` permet de configurer les URLs de
+retour par Source. Utiliser `sourceCode` au moment de
+`Orders::create($amount, sourceCode: 'xxxx')` pour router vers la bonne
+URL post-checkout.
+
+### Webhook signature handshake
+
+`Messages::register($eventTypeId, $url)` exige que l'URL réponde à un GET
+avec `{"Key": "<verification-key>"}`. La verification-key se trouve dans
+l'admin Viva (Settings → API Access → Webhooks). Sans le handshake, Viva
+refuse l'enregistrement.
+
+⚠️ Viva fait des appels périodiques sans signature depuis IPs Azure
+(`51.138.x.x`, `20.54.x.x`). Renvoyer 200 sur ces calls (logger en
+warning) pour éviter que Viva désactive le webhook.
+
+### Currency codes — ISO 4217 numeric vs alpha
+
+L'API Legacy retourne `CurrencyCode` en numérique (978 = EUR, 826 = GBP).
+Utiliser `Currency::fromIso((int) $code)` pour convertir en alpha.
+
+### Test cards (sandbox + production test mode)
+
+| Numéro | Exp | CVV | 3DS Pwd |
+|--------|-----|-----|---------|
+| `4111 1111 1111 1111` | future | 111 | `Secret!33` |
+
+Montants spéciaux pour tester les refus :
+
+| Amount (cents) | Result |
+|----------------|--------|
+| 9951 | Insufficient funds |
+| 9954 | Expired card |
+| 9920 | Stolen card |
+| 9957 | Card not permitted |
+| 9961 | Withdrawal limit exceeded |
+| 9906 | General error |
+| 9914 | Invalid card |
+
+Voir aussi `skill/references/prod-findings.md` pour le détail complet des
+endpoints testés et les samples prod.

@@ -7,7 +7,62 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [1.4.0] - 2026-05-01
+## [1.5.1] - 2026-05-04
+
+### Added
+
+- **`skill/references/prod-findings.md`** — Référence consolidée des
+  comportements observés en production sur compte ISV propre QR Communication
+  (Merchant `0119432c-...`) : endpoints qui marchent (Basic Auth simple),
+  authentification, différences avec `viva-isv-sdk`, Sources Smart Checkout,
+  webhook signature handshake, codes d'erreur, test cards.
+
+- **Section "Production gotchas"** ajoutée à `skill/SKILL.md` — référence
+  rapide des endpoints testés, du split avec `viva-isv-sdk`, des subtilités
+  webhook (verification key, IPs Azure, signature HMAC), test amounts pour
+  trigger les déclines.
+
+- **Roadmap des endpoints non encore couverts** documentée dans
+  `prod-findings.md` (Data Services Search, Acquiring v1 cards/refunds,
+  POS Cloud Terminal `/ecr/v1/*`, RF Code, Issuing API).
+
+### Documented
+
+- **EventTypeIds étendus** documentés (au-delà des 21 actuellement trackés
+  dans `Webhooks::EVENTS`) : 768, 769, 1802, 1803, 2054, 4865, 5632, 5633,
+  8448 + Sale Transactions (signed). Voir `prod-findings.md` § "EventTypeIds".
+
+- **SubTypeIds 2054 (Account Transaction Created)** complets — incluant le
+  range complet des fees, payIn, payOut, clearance, wallet ops, et obligations.
+  SubTypeId 183 = `IsvAcquiringCommission` (commission ISV créditée).
+  SubTypeIds 200/201/202/203 = TransfersPlatform* (marketplace settlements).
+
+- **OAuth scopes** explicites de la doc Viva publique :
+  - `urn:viva:payments:core:api:redirectcheckout`
+  - `urn:viva:payments:biservices:publicapi`
+  - `urn:viva:payments:biservices:internalapi`
+  Note : ne JAMAIS passer `scope=...` dans `/connect/token` — Viva dérive
+  depuis les credentials.
+
+- **Test amounts pour décliner** — table complète des montants .9905-.9996
+  qui retournent des EventIds 10005-10096 (insufficient funds, expired,
+  pickup, etc.) — utile pour les tests E2E.
+
+- **5 paires de credentials Viva distinctes** documentées :
+  Smart Checkout, ISV, Reseller API, POS APIs, Account Transactions.
+
+### Notes
+
+Cette version capitalise sur :
+1. Tests prod réels du compte ISV propre (PratiConnect 2026-05-04).
+2. Analyse exhaustive de la doc Viva crawled (483 pages couvrant la totalité
+   du portail developer.viva.com).
+
+Aucune breaking change. Uniquement de la documentation enrichie + roadmap.
+
+---
+
+## [1.5.0] - 2026-05-01
 
 ### Added
 
