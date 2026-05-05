@@ -10,8 +10,10 @@ use QrCommunication\VivaMerchant\HttpClient;
 /**
  * Wallet operations — balance, transfer between accounts.
  *
- * Retrieve Wallets uses the New API (Bearer token).
- * Balance Transfer uses the Legacy API (Basic Auth).
+ * The base list/balance endpoint `/api/wallets` lives on the **Legacy API**
+ * (www.vivapayments.com / demo.vivapayments.com) with Basic Auth.
+ * Detailed wallet management (`/walletaccounts/v1/*`) lives on the New API
+ * with Bearer OAuth2.
  *
  * Prerequisite for transfers: "Allow transfers between accounts" must be
  * enabled in Settings > API Access on the source wallet.
@@ -26,13 +28,13 @@ final class Wallets
     ) {}
 
     /**
-     * Retrieve all wallets for the merchant.
+     * Retrieve all wallets for the merchant via the Legacy API.
      *
      * @return array<int, array<string, mixed>>  List of wallets with balance info
      */
     public function list(): array
     {
-        $result = $this->http->get('/api/wallets');
+        $result = $this->http->legacyGet('/api/wallets');
 
         return $result['Wallets'] ?? $result['wallets'] ?? [$result];
     }

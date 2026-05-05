@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Viva Wallet Merchant SDK — Référence PHP
-  version: 1.5.1
+  version: 1.5.2
   description: |
     Documentation de référence du SDK PHP `qrcommunication/viva-merchant-sdk`.
 
@@ -726,6 +726,8 @@ paths:
       description: |
         Liste tous les portefeuilles du marchand (réponse basique).
 
+        **API: Legacy** (`www.vivapayments.com/api/wallets`, Basic Auth).
+
         ```php
         $wallets = $viva->wallets->list();
 
@@ -750,6 +752,8 @@ paths:
       summary: "$viva->wallets->balance()"
       description: |
         Retourne le solde agrégé de tous les portefeuilles.
+
+        **API: Legacy** (agrège la réponse de `Wallets::list()` côté SDK).
 
         ```php
         $balance = $viva->wallets->balance();
@@ -1564,6 +1568,8 @@ paths:
       description: |
         Récupère les informations du compte marchand.
 
+        **API: Legacy** (`www.vivapayments.com/api/accounts/{merchantId}`, Basic Auth).
+
         ```php
         $info = $viva->account->info();
 
@@ -1587,6 +1593,9 @@ paths:
       summary: "$viva->account->wallets()"
       description: |
         Récupère les portefeuilles/soldes du marchand (via Account API).
+
+        **API: Legacy** (`www.vivapayments.com/api/wallets`, Basic Auth).
+        Équivalent à `$viva->wallets->list()`.
 
         ```php
         $wallets = $viva->account->wallets();

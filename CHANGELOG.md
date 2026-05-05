@@ -7,6 +7,39 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.2] - 2026-05-05
+
+### Fixed
+
+- **`Wallets::list()`**, **`Account::wallets()`**, **`Account::info()`** — these
+  three Resource methods hit Legacy API endpoints (`/api/wallets`,
+  `/api/accounts/{merchantId}`) but were calling `HttpClient::get()` instead
+  of `HttpClient::legacyGet()`. The result: requests were routed to the
+  **New API host** (`api.vivapayments.com` / `demo-api.vivapayments.com`)
+  with **Bearer OAuth2** instead of the **Legacy host**
+  (`www.vivapayments.com` / `demo.vivapayments.com`) with **Basic Auth**.
+  Every wallet/balance/account-info call returned `HTTP 404`.
+
+  Reproduced in production on merchant `0119432c-…`:
+  - `curl https://www.vivapayments.com/api/wallets` (Basic Auth) → `HTTP 200`
+  - SDK `wallets->list()` → `HTTP 404` (because routed to `api.vivapayments.com`)
+
+  Fixed by switching the three calls to `legacyGet()`, which routes through
+  `Config::legacyUrl()` and uses Basic Auth as documented in `CLAUDE.md`.
+
+  Impact for downstream applications:
+  - `wallets->list()` and `wallets->balance()` now return real data
+  - `account->info()` and `account->wallets()` now return real data
+  - No public API/signature change, drop-in fix
+
+### Internal
+
+- Updated PHPDoc on `Wallets` and `Account` Resources to reflect the actual
+  API surface (Legacy vs New) per endpoint, matching the SDK `CLAUDE.md`
+  routing table.
+
+---
+
 ## [1.5.1] - 2026-05-04
 
 ### Added

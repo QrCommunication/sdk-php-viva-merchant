@@ -10,7 +10,10 @@ use QrCommunication\VivaMerchant\HttpClient;
 /**
  * Account information.
  *
- * Uses the New API (Bearer token) for account details.
+ * Both endpoints exposed here live on the **Legacy API**
+ * (www.vivapayments.com / demo.vivapayments.com) with Basic Auth:
+ * - `/api/accounts/{merchantId}` — account info
+ * - `/api/wallets`               — wallets list / balance
  */
 final class Account
 {
@@ -20,22 +23,22 @@ final class Account
     ) {}
 
     /**
-     * Get merchant account information.
+     * Get merchant account information via the Legacy API.
      *
      * @return array<string, mixed>  Account data (merchantId, businessName, email, etc.)
      */
     public function info(): array
     {
-        return $this->http->get('/api/accounts/'.$this->config->merchantId);
+        return $this->http->legacyGet('/api/accounts/'.$this->config->merchantId);
     }
 
     /**
-     * Get wallets/balance for the merchant.
+     * Get wallets/balance for the merchant via the Legacy API.
      *
      * @return array<string, mixed>
      */
     public function wallets(): array
     {
-        return $this->http->get('/api/wallets');
+        return $this->http->legacyGet('/api/wallets');
     }
 }
