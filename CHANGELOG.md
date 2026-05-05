@@ -7,6 +7,29 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.3] - 2026-05-05
+
+### Fixed
+
+- **`Wallets::list()`** — the Legacy `/api/wallets` endpoint can return three
+  shapes (`{Wallets: [...]}`, direct list `[...]`, single object `{...}`),
+  but the previous fallback `$result['Wallets'] ?? $result['wallets'] ?? [$result]`
+  produced a **double-nested array** when the response was already a list.
+  Symptom: `Wallets::balance()` (which iterates `list()`) saw one element
+  that was itself an array → all balance fields evaluated to 0 even when
+  the merchant had funds.
+
+  Reproduced on production merchant `0119432c-…` :
+  - Real `Available` for primary wallet: `17.89 EUR`
+  - `wallets->balance()` returned `0.00 EUR` (silent zero)
+
+  Fix: detect each of the three shapes explicitly with `array_is_list()`
+  and unwrap correctly. `balance()` now aggregates the real values.
+
+  Drop-in fix, no public API change.
+
+---
+
 ## [1.5.2] - 2026-05-05
 
 ### Fixed

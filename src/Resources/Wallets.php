@@ -30,13 +30,34 @@ final class Wallets
     /**
      * Retrieve all wallets for the merchant via the Legacy API.
      *
+     * The Legacy `/api/wallets` endpoint may respond in three shapes:
+     * - object wrapper: `{"Wallets": [{...}, ...]}`
+     * - direct list:    `[{...}, {...}]`
+     * - single wallet:  `{"WalletId": ..., "Iban": ..., ...}`
+     *
+     * We normalise all three to a flat list of wallet objects.
+     *
      * @return array<int, array<string, mixed>>  List of wallets with balance info
      */
     public function list(): array
     {
         $result = $this->http->legacyGet('/api/wallets');
 
-        return $result['Wallets'] ?? $result['wallets'] ?? [$result];
+        if (isset($result['Wallets']) && is_array($result['Wallets'])) {
+            return array_values($result['Wallets']);
+        }
+
+        if (isset($result['wallets']) && is_array($result['wallets'])) {
+            return array_values($result['wallets']);
+        }
+
+        // Already a list (default Viva response shape).
+        if (array_is_list($result)) {
+            return $result;
+        }
+
+        // Single wallet object — wrap in a list.
+        return [$result];
     }
 
     /**
