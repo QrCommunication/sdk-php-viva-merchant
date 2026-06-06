@@ -36,6 +36,12 @@ interface HttpClientInterface
      * @param  array<string, mixed> $body
      * @return array<string, mixed>
      */
+    public function patch(string $path, array $body = []): array;
+
+    /**
+     * @param  array<string, mixed> $body
+     * @return array<string, mixed>
+     */
     public function delete(string $path, array $body = []): array;
 
     /**
@@ -49,6 +55,12 @@ interface HttpClientInterface
      * @return array<string, mixed>
      */
     public function legacyPost(string $path, array $body = []): array;
+
+    /**
+     * @param  array<string, mixed> $body
+     * @return array<string, mixed>
+     */
+    public function legacyPatch(string $path, array $body = []): array;
 
     /** @return array<string, mixed> */
     public function legacyDelete(string $url): array;

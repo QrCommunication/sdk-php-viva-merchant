@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace QrCommunication\VivaMerchant\Resources;
 
 use QrCommunication\VivaMerchant\Config;
+use QrCommunication\VivaMerchant\Contracts\HttpClientInterface;
 use QrCommunication\VivaMerchant\Enums\Currency;
-use QrCommunication\VivaMerchant\HttpClient;
 
 /**
  * Payment Orders — Smart Checkout.
@@ -19,7 +19,7 @@ use QrCommunication\VivaMerchant\HttpClient;
 final class Orders
 {
     public function __construct(
-        private readonly HttpClient $http,
+        private readonly HttpClientInterface $http,
         private readonly Config $config,
     ) {}
 
@@ -80,6 +80,20 @@ final class Orders
     public function get(int $orderCode): array
     {
         return $this->http->legacyGet("/api/orders/{$orderCode}");
+    }
+
+    /**
+     * Update a standing payment order (Legacy API, PATCH).
+     *
+     * Accepts any subset of: amount (cents, never 0), disablePaidState (bool),
+     * expirationDate (ISO 8601), isCanceled (bool).
+     *
+     * @param  array<string, mixed>  $data  Fields to update
+     * @return array<string, mixed>
+     */
+    public function update(int $orderCode, array $data): array
+    {
+        return $this->http->legacyPatch("/api/orders/{$orderCode}", $data);
     }
 
     /**

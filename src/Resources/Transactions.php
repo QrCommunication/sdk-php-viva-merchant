@@ -5,20 +5,21 @@ declare(strict_types=1);
 namespace QrCommunication\VivaMerchant\Resources;
 
 use QrCommunication\VivaMerchant\Config;
-use QrCommunication\VivaMerchant\HttpClient;
+use QrCommunication\VivaMerchant\Contracts\HttpClientInterface;
 
 /**
- * Transaction operations — get, list, refund, capture, recurring.
+ * Transaction operations — get, list, refund, capture, recurring, acquiring.
  *
- * Uses the Legacy API (Basic Auth) for all operations.
- * The New API (/checkout/v2/transactions) only supports GET.
+ * Legacy API (Basic Auth) for capture/recurring/cancel/MOTO.
+ * New API (Bearer OAuth) for /checkout/v2 reads and /acquiring/v1 operations
+ * (increase preauth, rebate, fast refund, partial-auth cancel, card tokens).
  *
  * @see https://developer.viva.com/apis-for-payments/
  */
 final class Transactions
 {
     public function __construct(
-        private readonly HttpClient $http,
+        private readonly HttpClientInterface $http,
         private readonly Config $config,
     ) {}
 
@@ -130,6 +131,106 @@ final class Transactions
         if (($result['ErrorCode'] ?? -1) !== 0) {
             throw new \QrCommunication\VivaMerchant\Exceptions\ApiException(
                 $result['ErrorText'] ?? 'Recurring charge failed',
+                400,
+                $result,
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Increase the amount of an existing pre-authorized transaction (Acquiring API, Bearer).
+     *
+     * Used when the final amount is not known upfront (hotels, car rentals, fuel).
+     *
+     * @param  string  $transactionId  The pre-auth transaction UUID
+     * @param  int  $amount  Amount in cents to add to the original authorized amount
+     * @return array<string, mixed>  { transactionId }
+     */
+    public function increasePreauth(string $transactionId, int $amount): array
+    {
+        return $this->http->post("/acquiring/v1/transactions/{$transactionId}:increasepreauth", [
+            'amount' => $amount,
+        ]);
+    }
+
+    /**
+     * Perform a rebate tied to an initial transaction (Acquiring API, Bearer).
+     *
+     * @param  string  $transactionId  The initial (parent) transaction UUID
+     * @param  int  $amount  Amount in cents the merchant wishes to give to the client
+     * @param  string|null  $merchantReference  Optional merchant reference
+     * @return array<string, mixed>  { transactionId }
+     */
+    public function rebate(string $transactionId, int $amount, ?string $merchantReference = null): array
+    {
+        return $this->http->post("/acquiring/v1/transactions/{$transactionId}:rebate", array_filter([
+            'amount' => $amount,
+            'merchantTrns' => $merchantReference,
+        ], fn ($v) => $v !== null));
+    }
+
+    /**
+     * Perform a fast refund tied to an initial transaction (Acquiring API, Bearer).
+     *
+     * @param  string  $transactionId  The initial (parent) transaction UUID
+     * @param  int  $amount  Amount in cents the merchant wishes to give to the client
+     * @param  string|null  $merchantReference  Optional merchant reference
+     * @return array<string, mixed>  { transactionId }
+     */
+    public function fastRefund(string $transactionId, int $amount, ?string $merchantReference = null): array
+    {
+        return $this->http->post("/acquiring/v1/transactions/{$transactionId}:fastrefund", array_filter([
+            'amount' => $amount,
+            'merchantTrns' => $merchantReference,
+        ], fn ($v) => $v !== null));
+    }
+
+    /**
+     * Cancel a transaction / partial authorization via the Acquiring API (Bearer).
+     *
+     * @param  string  $transactionId  Transaction UUID to cancel
+     * @param  int|null  $amount  Amount in cents to cancel (sent as query param when provided)
+     * @return array<string, mixed>  { transactionId }
+     */
+    public function cancelAcquiring(string $transactionId, ?int $amount = null): array
+    {
+        $path = "/acquiring/v1/transactions/{$transactionId}";
+        if ($amount !== null) {
+            $path .= '?'.http_build_query(['amount' => $amount]);
+        }
+
+        return $this->http->delete($path);
+    }
+
+    /**
+     * Create a card token from an initial transaction (Acquiring API, Bearer).
+     *
+     * @param  array<string, mixed>  $card  Body, e.g. { transactionId, groupId?, cardTokenType? }
+     * @return array<string, mixed>  { token }
+     */
+    public function createCardToken(array $card): array
+    {
+        return $this->http->post('/acquiring/v1/cards/tokens', $card);
+    }
+
+    /**
+     * Make a MOTO (Mail Order / Telephone Order) card charge (Legacy API, Basic Auth).
+     *
+     * The payload must contain at least `moto` (always true), `creditcard`
+     * (number + expirationDate) and `orderCode`.
+     *
+     * @param  array<string, mixed>  $payload  MOTO charge body (camelCase per Viva MOTO spec)
+     * @return array<string, mixed>
+     */
+    public function moto(array $payload): array
+    {
+        $result = $this->http->legacyPost('/api/transactions', $payload);
+
+        if (($result['ErrorCode'] ?? -1) !== 0) {
+            throw new \QrCommunication\VivaMerchant\Exceptions\ApiException(
+                $result['ErrorText'] ?? 'MOTO charge failed',
                 400,
                 $result,
             );

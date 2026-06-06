@@ -1,6 +1,6 @@
 # Viva Wallet Merchant SDK — PHP
 
-[![Version 1.4.0](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/qrcommunication/sdk-php-viva-merchant/releases)
+[![Version 1.6.0](https://img.shields.io/badge/version-1.6.0-blue.svg)](https://github.com/qrcommunication/sdk-php-viva-merchant/releases)
 [![PHP 8.2+](https://img.shields.io/badge/PHP-8.2%2B-777BB4.svg)](https://php.net)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Packagist](https://img.shields.io/badge/Packagist-qrcommunication%2Fviva--merchant--sdk-orange.svg)](https://packagist.org/packages/qrcommunication/viva-merchant-sdk)

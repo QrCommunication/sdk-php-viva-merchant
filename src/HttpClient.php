@@ -77,6 +77,18 @@ final class HttpClient implements HttpClientInterface
     }
 
     /**
+     * PATCH on the new API.
+     *
+     * @return array<string, mixed>
+     */
+    public function patch(string $path, array $body = []): array
+    {
+        return $this->requestBearer('PATCH', $this->config->apiUrl().$path, [
+            RequestOptions::JSON => $body,
+        ]);
+    }
+
+    /**
      * DELETE on the new API.
      *
      * @return array<string, mixed>
@@ -110,6 +122,18 @@ final class HttpClient implements HttpClientInterface
     public function legacyPost(string $path, array $body = []): array
     {
         return $this->requestBasic('POST', $this->config->legacyUrl().$path, [
+            RequestOptions::JSON => $body,
+        ]);
+    }
+
+    /**
+     * PATCH on the legacy API.
+     *
+     * @return array<string, mixed>
+     */
+    public function legacyPatch(string $path, array $body = []): array
+    {
+        return $this->requestBasic('PATCH', $this->config->legacyUrl().$path, [
             RequestOptions::JSON => $body,
         ]);
     }

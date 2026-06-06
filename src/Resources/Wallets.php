@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace QrCommunication\VivaMerchant\Resources;
 
 use QrCommunication\VivaMerchant\Config;
-use QrCommunication\VivaMerchant\HttpClient;
+use QrCommunication\VivaMerchant\Contracts\HttpClientInterface;
 
 /**
  * Wallet operations — balance, transfer between accounts.
@@ -23,7 +23,7 @@ use QrCommunication\VivaMerchant\HttpClient;
 final class Wallets
 {
     public function __construct(
-        private readonly HttpClient $http,
+        private readonly HttpClientInterface $http,
         private readonly Config $config,
     ) {}
 
@@ -164,5 +164,18 @@ final class Wallets
     public function getTransaction(string $transactionId): array
     {
         return $this->http->get("/walletaccounts/v1/transactions/{$transactionId}");
+    }
+
+    /**
+     * Retrieve all wallets set up under the Viva profile via the Merchants API (Bearer).
+     *
+     * Richer response than the Legacy list: iban, walletId, amount, isPrimary,
+     * available, overdraft, currencyCode, friendlyName.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function listMerchant(): array
+    {
+        return $this->http->get('/merchants/v1/wallets');
     }
 }

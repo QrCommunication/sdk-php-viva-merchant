@@ -66,4 +66,16 @@ final class Messages implements MessagesInterface
     {
         return $this->http->legacyDeletePath('/api/messages/config/' . $messageId);
     }
+
+    /**
+     * Retrieve the webhook verification key (Legacy API, Basic Auth).
+     *
+     * Use this key in the GET verification response of your webhook endpoint.
+     *
+     * @return array{Key: string}|array<string, mixed>
+     */
+    public function getWebhookKey(): array
+    {
+        return $this->http->legacyGet('/api/messages/config/token');
+    }
 }

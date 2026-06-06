@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace QrCommunication\VivaMerchant\Resources;
 
-use QrCommunication\VivaMerchant\HttpClient;
+use QrCommunication\VivaMerchant\Contracts\HttpClientInterface;
 
 /**
  * Bank Account & Transfer operations.
@@ -20,7 +20,7 @@ use QrCommunication\VivaMerchant\HttpClient;
 final class BankAccounts
 {
     public function __construct(
-        private readonly HttpClient $http,
+        private readonly HttpClientInterface $http,
     ) {}
 
     /**
@@ -110,5 +110,17 @@ final class BankAccounts
     public function get(string $bankAccountId): array
     {
         return $this->http->get("/banktransfers/v1/bankaccounts/{$bankAccountId}");
+    }
+
+    /**
+     * Update a linked bank account (archive status, friendly/beneficiary name).
+     *
+     * @param  string  $bankAccountId  Linked bank account UUID
+     * @param  array<string, mixed>  $data  e.g. { archive: bool, friendlyName?: string, beneficiaryName?: string }
+     * @return array<string, mixed>
+     */
+    public function update(string $bankAccountId, array $data): array
+    {
+        return $this->http->patch("/banktransfers/v1/bankaccounts/{$bankAccountId}", $data);
     }
 }

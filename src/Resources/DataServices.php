@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace QrCommunication\VivaMerchant\Resources;
 
-use QrCommunication\VivaMerchant\HttpClient;
+use QrCommunication\VivaMerchant\Contracts\HttpClientInterface;
 
 /**
  * Data Services — reporting, reconciliation, and webhook subscriptions.
@@ -18,7 +18,7 @@ use QrCommunication\VivaMerchant\HttpClient;
 final class DataServices
 {
     public function __construct(
-        private readonly HttpClient $http,
+        private readonly HttpClientInterface $http,
     ) {}
 
     /**
@@ -100,5 +100,41 @@ final class DataServices
         return $this->http->post('/dataservices/v1/file-request', [
             'date' => $date,
         ]);
+    }
+
+    /**
+     * Search historical transactions via the Data Service (v2, Bearer).
+     *
+     * Pagination (page/pageSize) is sent as query params; filters go in the body
+     * (PascalCase per the Data Service spec, e.g. insDateFrom, StatusIds, OrderCode).
+     *
+     * @param  array<string, mixed>  $filters  Search filters (request body)
+     * @param  int  $page  Page number (0-based)
+     * @param  int  $pageSize  Records per page (max 500)
+     * @return array<string, mixed>
+     */
+    public function searchTransactions(array $filters = [], int $page = 0, int $pageSize = 50): array
+    {
+        $query = http_build_query(['Page' => $page, 'PageSize' => $pageSize]);
+
+        return $this->http->post("/dataservices/v2/transactions/Search?{$query}", $filters);
+    }
+
+    /**
+     * Search account transactions via the Data Service (v2, Bearer).
+     *
+     * Pagination (page/pageSize) is sent as query params; filters go in the body
+     * (e.g. DateFrom, DateTo, WalletId, SubTypeIds, AmountFrom, AmountTo).
+     *
+     * @param  array<string, mixed>  $filters  Search filters (request body)
+     * @param  int  $page  Page number (0-based)
+     * @param  int  $pageSize  Records per page (max 500)
+     * @return array<string, mixed>
+     */
+    public function searchAccountTransactions(array $filters = [], int $page = 0, int $pageSize = 50): array
+    {
+        $query = http_build_query(['Page' => $page, 'PageSize' => $pageSize]);
+
+        return $this->http->post("/dataservices/v2/accounttransactions/Search?{$query}", $filters);
     }
 }

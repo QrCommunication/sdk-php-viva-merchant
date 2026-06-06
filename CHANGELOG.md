@@ -7,6 +7,58 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.6.0] - 2026-06-06
+
+### Added — Standard Payment API endpoints
+
+- **`HttpClient::patch()`** / **`HttpClient::legacyPatch()`** — PATCH support on
+  the New API (Bearer) and Legacy API (Basic Auth). Added to
+  `Contracts\HttpClientInterface`.
+
+- **`Transactions`** (Acquiring API, Bearer):
+  - `increasePreauth(string $transactionId, int $amount)` — incremental pre-auth
+    (`POST /acquiring/v1/transactions/{id}:increasepreauth`).
+  - `rebate(string $transactionId, int $amount, ?string $merchantReference)` —
+    (`POST /acquiring/v1/transactions/{id}:rebate`).
+  - `fastRefund(string $transactionId, int $amount, ?string $merchantReference)` —
+    (`POST /acquiring/v1/transactions/{id}:fastrefund`).
+  - `cancelAcquiring(string $transactionId, ?int $amount)` — partial-auth cancel
+    (`DELETE /acquiring/v1/transactions/{id}`, `amount` in query when provided).
+  - `createCardToken(array $card)` — (`POST /acquiring/v1/cards/tokens`).
+  - `moto(array $payload)` — MOTO card charge (`POST /api/transactions`, Legacy,
+    PascalCase, with `ErrorCode !== 0` guard).
+
+- **`Orders::update(int $orderCode, array $data)`** — update a standing order
+  (`PATCH /api/orders/{orderCode}`, Legacy).
+
+- **`BankAccounts::update(string $bankAccountId, array $data)`** — archive /
+  rename a linked bank account (`PATCH /banktransfers/v1/bankaccounts/{id}`).
+
+- **`DataServices`** (Bearer):
+  - `searchTransactions(array $filters, int $page, int $pageSize)` —
+    (`POST /dataservices/v2/transactions/Search`, paging in query, filters in body).
+  - `searchAccountTransactions(array $filters, int $page, int $pageSize)` —
+    (`POST /dataservices/v2/accounttransactions/Search`).
+
+- **`Wallets::listMerchant()`** — (`GET /merchants/v1/wallets`, Bearer).
+
+- **`Messages::getWebhookKey()`** — webhook verification key
+  (`GET /api/messages/config/token`, Legacy).
+
+- **`Fees`** (new Resource, Legacy) — `get(int $amount, ?int $orderCode)`
+  (`GET /api/fees`). Wired as `$viva->fees`.
+
+- **`Payments`** (new Resource, Bearer) — `createRfCode(array $payload)` RF Code
+  generation (`POST /web2/checkout/v2/paymentsessions`). Wired as `$viva->payments`.
+
+### Changed
+
+- `Transactions`, `Orders`, `BankAccounts`, `DataServices`, `Wallets` now
+  type-hint `Contracts\HttpClientInterface` instead of the concrete (final)
+  `HttpClient`, enabling unit-test mocking. No public API change.
+
+---
+
 ## [1.5.3] - 2026-05-05
 
 ### Fixed

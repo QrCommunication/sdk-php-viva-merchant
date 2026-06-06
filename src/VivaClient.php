@@ -9,9 +9,11 @@ use QrCommunication\VivaMerchant\Helpers\WebhookRegistrar;
 use QrCommunication\VivaMerchant\Resources\Account;
 use QrCommunication\VivaMerchant\Resources\BankAccounts;
 use QrCommunication\VivaMerchant\Resources\DataServices;
+use QrCommunication\VivaMerchant\Resources\Fees;
 use QrCommunication\VivaMerchant\Resources\Messages;
 use QrCommunication\VivaMerchant\Resources\NativeCheckout;
 use QrCommunication\VivaMerchant\Resources\Orders;
+use QrCommunication\VivaMerchant\Resources\Payments;
 use QrCommunication\VivaMerchant\Resources\Sources;
 use QrCommunication\VivaMerchant\Resources\Transactions;
 use QrCommunication\VivaMerchant\Resources\Wallets;
@@ -53,6 +55,12 @@ use QrCommunication\VivaMerchant\Resources\Webhooks;
  *     // Rapport MT940
  *     $report = $viva->dataServices->mt940('2026-03-18');
  *
+ *     // Calculer les frais d'une transaction
+ *     $fees = $viva->fees->get(amount: 1500);
+ *
+ *     // Generer un RF Code pour un ordre existant
+ *     $rf = $viva->payments->createRfCode(['orderCode' => 3097103021072605]);
+ *
  *     // Enregistrer les webhooks banking (idempotent)
  *     $viva->webhookRegistrar()->registerAll('https://example.com/webhooks/viva');
  *
@@ -79,6 +87,10 @@ final class VivaClient
     public readonly NativeCheckout $nativeCheckout;
 
     public readonly DataServices $dataServices;
+
+    public readonly Fees $fees;
+
+    public readonly Payments $payments;
 
     private readonly Config $config;
 
@@ -114,6 +126,8 @@ final class VivaClient
         $this->account = new Account($this->http, $this->config);
         $this->nativeCheckout = new NativeCheckout($this->http);
         $this->dataServices = new DataServices($this->http);
+        $this->fees = new Fees($this->http);
+        $this->payments = new Payments($this->http);
     }
 
     /**
