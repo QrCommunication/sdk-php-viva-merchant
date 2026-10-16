@@ -153,6 +153,7 @@ final class TransactionsAcquiringTest extends TestCase
     public function moto_throws_on_non_zero_error_code(): void
     {
         $this->http
+            ->expects($this->atLeastOnce())
             ->method('legacyPost')
             ->willReturn(['ErrorCode' => 12, 'ErrorText' => 'Declined']);
 

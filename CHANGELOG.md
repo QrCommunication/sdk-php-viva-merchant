@@ -7,6 +7,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Changed
+- Dependencies: `guzzlehttp/guzzle` constraint widened to `^7.8 || ^8.0` (tested on 8.2),
+  `phpunit/phpunit` to `^11.0 || ^12.0 || ^13.0` (tested on 13.4; Composer keeps PHPUnit 11
+  on PHP 8.2). The `php` requirement is unchanged.
+- Tests: mock expectations made explicit (`atLeastOnce()`), as PHPUnit 12+ flags mocks
+  without expectations.
+
+
 ## [1.6.0] - 2026-06-06
 
 ### Added — Standard Payment API endpoints

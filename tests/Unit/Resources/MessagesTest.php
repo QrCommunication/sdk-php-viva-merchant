@@ -93,6 +93,7 @@ final class MessagesTest extends TestCase
     public function delete_returns_api_response(): void
     {
         $this->http
+            ->expects($this->atLeastOnce())
             ->method('legacyDeletePath')
             ->willReturn(['deleted' => true]);
 

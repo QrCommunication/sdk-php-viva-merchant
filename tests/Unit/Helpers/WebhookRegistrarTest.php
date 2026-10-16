@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace QrCommunication\VivaMerchant\Tests\Unit\Helpers;
 
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -23,6 +24,7 @@ final class WebhookRegistrarTest extends TestCase
     }
 
     #[Test]
+    #[AllowMockObjectsWithoutExpectations]
     public function banking_events_constant_contains_expected_ids(): void
     {
         $this->assertArrayHasKey(768,  WebhookRegistrar::BANKING_EVENTS);
@@ -47,6 +49,7 @@ final class WebhookRegistrarTest extends TestCase
     public function register_all_returns_already_exists_on_400_duplicate_error(): void
     {
         $this->messages
+            ->expects($this->atLeastOnce())
             ->method('register')
             ->willThrowException(
                 new ApiException('duplicate subscription', 400, ['ErrorText' => 'duplicate']),
@@ -63,6 +66,7 @@ final class WebhookRegistrarTest extends TestCase
     public function register_all_returns_already_exists_on_already_keyword(): void
     {
         $this->messages
+            ->expects($this->atLeastOnce())
             ->method('register')
             ->willThrowException(
                 new ApiException('already registered', 400, ['message' => 'subscription already registered']),
@@ -80,6 +84,7 @@ final class WebhookRegistrarTest extends TestCase
     public function register_all_returns_already_exists_on_error_code_1100(): void
     {
         $this->messages
+            ->expects($this->atLeastOnce())
             ->method('register')
             ->willThrowException(
                 new ApiException('conflict', 400, ['ErrorCode' => 1100]),
@@ -97,6 +102,7 @@ final class WebhookRegistrarTest extends TestCase
     public function register_all_returns_error_prefixed_message_on_unexpected_exception(): void
     {
         $this->messages
+            ->expects($this->atLeastOnce())
             ->method('register')
             ->willThrowException(
                 new ApiException('Service unavailable', 503, []),
@@ -128,6 +134,7 @@ final class WebhookRegistrarTest extends TestCase
     public function register_all_handles_mixed_success_and_duplicate(): void
     {
         $this->messages
+            ->expects($this->atLeastOnce())
             ->method('register')
             ->willReturnCallback(function (int $eventTypeId): array {
                 if ($eventTypeId === 768) {
